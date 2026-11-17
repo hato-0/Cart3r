@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "cart3rclient",
+  "version": "${version}",
+  "name": "CART3R Client",
+  "description": "Client-side utility menu for singleplayer and servers where it is allowed.",
+  "authors": ["CART3R"],
+  "license": "MIT",
+  "icon": "assets/cart3rclient/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.cart3r.client.Cart3rClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
