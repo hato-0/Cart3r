@@ -25,7 +25,7 @@ public class CartButton extends Button {
 	}
 
 	@Override
-	public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float delta) {
+	public void renderContents(GuiGraphics g, int mouseX, int mouseY, float delta) {
 		boolean hover = this.isHoveredOrFocused();
 		boolean on = state.getAsBoolean();
 		int x = getX();
