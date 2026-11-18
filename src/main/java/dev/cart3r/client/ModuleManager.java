@@ -11,17 +11,23 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
+import java.util.Optional;
 
 public final class ModuleManager {
 	private static boolean isGoodFood(ItemStack s) {
@@ -34,6 +40,8 @@ public final class ModuleManager {
 			&& !s.is(Items.POISONOUS_POTATO);
 	}
 
+	public static final InterfaceModule INTERFACE = new InterfaceModule();
+
 	public static final List<Module> MODULES = List.of(
 		new Module("Sprint", Category.MOVEMENT, "Always sprint while moving forward") {
 			@Override
@@ -44,13 +52,17 @@ public final class ModuleManager {
 			}
 		},
 		new Module("Flight", Category.MOVEMENT, "Creative-style flying") {
+			private final Setting speed = num("Speed", 0.5, 5.0, 1.0, 0.25);
+
 			@Override
 			public void onTick(Minecraft mc) {
 				mc.player.getAbilities().mayfly = true;
+				mc.player.getAbilities().setFlyingSpeed((float) (0.05 * speed.num()));
 			}
 
 			@Override
 			public void onDisable(Minecraft mc) {
+				mc.player.getAbilities().setFlyingSpeed(0.05f);
 				if (!mc.player.isCreative() && !mc.player.isSpectator()) {
 					mc.player.getAbilities().mayfly = false;
 					mc.player.getAbilities().flying = false;
@@ -58,20 +70,24 @@ public final class ModuleManager {
 			}
 		},
 		new Module("Speed", Category.MOVEMENT, "Faster ground movement") {
+			private final Setting mult = num("Multiplier", 1.0, 1.8, 1.25, 0.05);
+
 			@Override
 			public void onTick(Minecraft mc) {
 				if (mc.player.onGround() && mc.player.input.hasForwardImpulse()) {
 					Vec3 v = mc.player.getDeltaMovement();
-					mc.player.setDeltaMovement(v.x * 1.25, v.y, v.z * 1.25);
+					mc.player.setDeltaMovement(v.x * mult.num(), v.y, v.z * mult.num());
 				}
 			}
 		},
 		new Module("Step", Category.MOVEMENT, "Walk up full blocks") {
+			private final Setting height = num("Height", 0.6, 2.5, 1.0, 0.1);
+
 			@Override
 			public void onTick(Minecraft mc) {
 				AttributeInstance a = mc.player.getAttribute(Attributes.STEP_HEIGHT);
-				if (a != null && a.getBaseValue() != 1.0) {
-					a.setBaseValue(1.0);
+				if (a != null && Math.abs(a.getBaseValue() - height.num()) > 0.001) {
+					a.setBaseValue(height.num());
 				}
 			}
 
@@ -100,6 +116,74 @@ public final class ModuleManager {
 				}
 			}
 		},
+		new Module("BoatFly", Category.MOVEMENT, "Fly while riding a boat or other vehicle") {
+			private final Setting speed = num("Speed", 0.2, 3.0, 1.0, 0.1);
+			private final Setting vertical = num("Vertical", 0.1, 2.0, 0.6, 0.1);
+			private Entity last;
+
+			private void release() {
+				if (last != null) {
+					last.setNoGravity(false);
+					last = null;
+				}
+			}
+
+			@Override
+			public void onTick(Minecraft mc) {
+				Entity v = mc.player.getVehicle();
+				if (v == null) {
+					release();
+					return;
+				}
+				last = v;
+				v.setNoGravity(true);
+				double yaw = Math.toRadians(mc.player.getYRot());
+				double f = (mc.options.keyUp.isDown() ? 1 : 0) - (mc.options.keyDown.isDown() ? 1 : 0);
+				double sp = speed.num();
+				double y = (mc.options.keyJump.isDown() ? vertical.num() : 0)
+					- (mc.options.keySprint.isDown() ? vertical.num() : 0);
+				v.setDeltaMovement(-Math.sin(yaw) * f * sp, y, Math.cos(yaw) * f * sp);
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				release();
+			}
+		},
+		new Module("Freecam", Category.MOVEMENT, "Fly the camera around without moving") {
+			private final Setting speed = num("Speed", 0.2, 3.0, 0.8, 0.1);
+
+			@Override
+			public boolean persistent() {
+				return false;
+			}
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				Freecam.start(mc);
+			}
+
+			@Override
+			public void onTick(Minecraft mc) {
+				Freecam.tick(mc, speed.num());
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				Freecam.stop(mc);
+			}
+		},
+		new Module("Sneak", Category.MOVEMENT, "Hold sneak for you") {
+			@Override
+			public void onTick(Minecraft mc) {
+				mc.options.keyShift.setDown(true);
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				mc.options.keyShift.setDown(false);
+			}
+		},
 		new Module("Fullbright", Category.VISUAL, "See clearly in the dark") {
 			@Override
 			public void onTick(Minecraft mc) {
@@ -114,35 +198,98 @@ public final class ModuleManager {
 				mc.player.removeEffect(MobEffects.NIGHT_VISION);
 			}
 		},
-		new Module("ESP", Category.VISUAL, "Outline entities through walls") {
-			@Override
-			public void onTick(Minecraft mc) {
-				for (Entity e : mc.level.entitiesForRendering()) {
-					if (e != mc.player) {
-						e.setGlowingTag(true);
-					}
-				}
-			}
+		new Module("ESP", Category.VISUAL, "Boxes around entities, visible through walls") {
+			private final Setting players = toggle("Players", true);
+			private final Setting monsters = toggle("Monsters", true);
+			private final Setting passive = toggle("Passive", false);
+			private final Setting items = toggle("Items", false);
+			private final Setting range = num("Range", 16, 256, 96, 8);
+			private final Setting style = options("Style", 0, "Box", "Corners");
+			private final Setting health = toggle("Health bar", true);
+			private final Setting names = toggle("Names", false);
+			private final Setting glow = toggle("Glow", false);
+			private boolean glowing;
 
-			@Override
-			public void onDisable(Minecraft mc) {
+			private void clearGlow(Minecraft mc) {
 				if (mc.level != null) {
 					for (Entity e : mc.level.entitiesForRendering()) {
 						e.setGlowingTag(false);
 					}
 				}
+				glowing = false;
+			}
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (glow.bool()) {
+					glowing = true;
+					for (Entity e : mc.level.entitiesForRendering()) {
+						if (e != mc.player && Targets.allowed(this, Targets.kind(e))) {
+							e.setGlowingTag(true);
+						}
+					}
+				} else if (glowing) {
+					clearGlow(mc);
+				}
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				clearGlow(mc);
 			}
 		},
+		new Module("Tracers", Category.VISUAL, "Lines from you to nearby entities") {
+			private final Setting players = toggle("Players", true);
+			private final Setting monsters = toggle("Monsters", false);
+			private final Setting passive = toggle("Passive", false);
+			private final Setting items = toggle("Items", false);
+			private final Setting range = num("Range", 16, 256, 128, 8);
+			private final Setting origin = options("Origin", 0, "Crosshair", "Bottom");
+			private final Setting thickness = num("Thickness", 1, 3, 1, 1);
+			private final Setting distance = toggle("Distance", true);
+		},
+		new Module("Nametags", Category.VISUAL, "Name, health and distance above entities") {
+			private final Setting players = toggle("Players", true);
+			private final Setting monsters = toggle("Monsters", false);
+			private final Setting passive = toggle("Passive", false);
+			private final Setting range = num("Range", 8, 128, 64, 4);
+			private final Setting health = toggle("Health", true);
+			private final Setting distance = toggle("Distance", true);
+		},
+		new Module("LightDebug", Category.VISUAL, "Mark nearby spots where monsters can spawn") {
+			private final Setting radius = num("Radius", 4, 16, 8, 1);
+			private final Setting night = toggle("Night spots", true);
+		},
+		new Module("StorageESP", Category.VISUAL, "Find trial chambers, spawners and chests (servers: trial chambers only)") {
+			private final Setting trial = toggle("Trial spawners", true);
+			private final Setting vaults = toggle("Vaults", true);
+			private final Setting spawners = toggle("Spawners", true);
+			private final Setting chests = toggle("Chests", true);
+			private final Setting ender = toggle("Ender chests", true);
+			private final Setting labels = toggle("Labels", true);
+			private final Setting range = num("Range", 16, 256, 128, 8);
+		},
+		new Module("Hitboxes", Category.VISUAL, "Show the hitbox of every entity") {
+			private final Setting players = toggle("Players", true);
+			private final Setting monsters = toggle("Monsters", true);
+			private final Setting passive = toggle("Passive", true);
+			private final Setting items = toggle("Items", false);
+			private final Setting others = toggle("Others", false);
+			private final Setting eye = toggle("Eye line", true);
+			private final Setting range = num("Range", 8, 128, 48, 4);
+		},
 		new Module("Zoom", Category.VISUAL, "Narrow field of view to zoom in") {
+			private final Setting fov = num("FOV", 30, 60, 30, 5);
 			private int previous = 0;
 
 			@Override
 			public void onTick(Minecraft mc) {
-				if (mc.options.fov().get() != 30) {
+				int target = (int) fov.num();
+				if (mc.options.fov().get() != target) {
 					if (previous == 0) {
 						previous = mc.options.fov().get();
 					}
-					mc.options.fov().set(30);
+					mc.options.fov().set(target);
 				}
 			}
 
@@ -152,11 +299,85 @@ public final class ModuleManager {
 				previous = 0;
 			}
 		},
-		new Module("Tracers", Category.VISUAL, "Draw lines to nearby players and monsters") {
+		new Module("SwingSpeed", Category.VISUAL, "Faster arm swing animation") {
+			private final Setting speed = num("Speed", 1, 4, 2, 1);
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.swinging) {
+					mc.player.swingTime = Math.min(mc.player.swingTime + (int) speed.num() - 1, 5);
+				}
+			}
 		},
-		new Module("HUD", Category.VISUAL, "Show FPS, coordinates and active modules") {
+		new Module("SpeedMine", Category.PLAYER, "Mine faster (client-side, servers may correct it)") {
+			private final Setting mult = num("Multiplier", 1.0, 3.0, 1.4, 0.1);
+
+			@Override
+			public void onTick(Minecraft mc) {
+				AttributeInstance a = mc.player.getAttribute(Attributes.BLOCK_BREAK_SPEED);
+				if (a != null && Math.abs(a.getBaseValue() - mult.num()) > 0.001) {
+					a.setBaseValue(mult.num());
+				}
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				AttributeInstance a = mc.player.getAttribute(Attributes.BLOCK_BREAK_SPEED);
+				if (a != null) {
+					a.setBaseValue(1.0);
+				}
+			}
 		},
-		new Module("AutoTool", Category.UTILITY, "Switch to the best hotbar tool while mining") {
+		new Module("Reach", Category.PLAYER, "Hit mobs from further away (never players)") {
+			private final Setting distance = num("Distance", 3.5, 6.0, 4.5, 0.1);
+			private boolean attackWas;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				boolean down = mc.options.keyAttack.isDown();
+				boolean press = down && !attackWas;
+				attackWas = down;
+				if (!press || mc.screen != null || mc.gameMode == null) {
+					return;
+				}
+				if (mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.ENTITY) {
+					return;
+				}
+				if (mc.player.getAttackStrengthScale(0.0f) < 0.9f) {
+					return;
+				}
+				Vec3 eye = mc.player.getEyePosition();
+				Vec3 look = mc.player.getViewVector(1.0f);
+				double reach = distance.num();
+				Vec3 end = eye.add(look.scale(reach));
+				Entity best = null;
+				double bestD = reach * reach + 1.0;
+				for (Entity e : mc.level.entitiesForRendering()) {
+					if (e == mc.player || !(e instanceof LivingEntity) || e instanceof Player
+						|| !e.isAlive() || !e.isPickable() || e.getType() == EntityType.ARMOR_STAND) {
+						continue;
+					}
+					AABB bb = e.getBoundingBox().inflate(e.getPickRadius());
+					Optional<Vec3> hit = bb.clip(eye, end);
+					if (hit.isEmpty()) {
+						continue;
+					}
+					double d = eye.distanceToSqr(hit.get());
+					if (d < 9.0) {
+						continue;
+					}
+					if (d < bestD && mc.player.hasLineOfSight(e)) {
+						best = e;
+						bestD = d;
+					}
+				}
+				if (best != null) {
+					mc.gameMode.attack(mc.player, best);
+					mc.player.swing(InteractionHand.MAIN_HAND);
+				}
+			}
+		},
+		new Module("AutoTool", Category.PLAYER, "Switch to the best hotbar tool while mining") {
 			private int previous = -1;
 
 			@Override
@@ -198,7 +419,7 @@ public final class ModuleManager {
 				}
 			}
 		},
-		new Module("AutoEat", Category.UTILITY, "Eat food from your hotbar when hungry") {
+		new Module("AutoEat", Category.PLAYER, "Eat food from your hotbar when hungry") {
 			private boolean eating;
 			private int previous = -1;
 
@@ -239,7 +460,34 @@ public final class ModuleManager {
 				}
 			}
 		},
-		new Module("AutoRespawn", Category.UTILITY, "Respawn immediately after dying") {
+		new Module("AutoTotem", Category.PLAYER, "Keep a totem of undying in your offhand") {
+			private final Setting delay = num("Delay", 0, 10, 1, 1);
+			private int wait;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.gameMode == null) {
+					return;
+				}
+				if (mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
+					wait = 0;
+					return;
+				}
+				if (++wait <= delay.num()) {
+					return;
+				}
+				Inventory inv = mc.player.getInventory();
+				for (int i = 0; i < 36; i++) {
+					if (inv.getItem(i).is(Items.TOTEM_OF_UNDYING)) {
+						int slot = i < 9 ? 36 + i : i;
+						mc.gameMode.handleInventoryMouseClick(mc.player.inventoryMenu.containerId, slot, 40, ClickType.SWAP, mc.player);
+						wait = 0;
+						return;
+					}
+				}
+			}
+		},
+		new Module("AutoRespawn", Category.PLAYER, "Respawn immediately after dying") {
 			@Override
 			public void onTick(Minecraft mc) {
 				if (mc.screen instanceof DeathScreen) {
@@ -282,17 +530,6 @@ public final class ModuleManager {
 				pulsed = false;
 			}
 		},
-		new Module("Sneak", Category.UTILITY, "Hold sneak for you") {
-			@Override
-			public void onTick(Minecraft mc) {
-				mc.options.keyShift.setDown(true);
-			}
-
-			@Override
-			public void onDisable(Minecraft mc) {
-				mc.options.keyShift.setDown(false);
-			}
-		},
 		new Module("AutoWalk", Category.UTILITY, "Hold the forward key for you") {
 			@Override
 			public void onTick(Minecraft mc) {
@@ -305,11 +542,12 @@ public final class ModuleManager {
 			}
 		},
 		new Module("AntiAFK", Category.UTILITY, "Move a little so you aren't kicked") {
+			private final Setting seconds = num("Seconds", 5, 120, 30, 5);
 			private int ticks;
 
 			@Override
 			public void onTick(Minecraft mc) {
-				if (++ticks >= 600) {
+				if (++ticks >= seconds.num() * 20) {
 					ticks = 0;
 					mc.player.setYRot(mc.player.getYRot() + 3.0f);
 					mc.player.swing(InteractionHand.MAIN_HAND);
@@ -333,37 +571,76 @@ public final class ModuleManager {
 			}
 		},
 		new Module("EntityCulling", Category.PERFORMANCE, "Render fewer distant entities") {
+			private final Setting distance = num("Distance", 0.5, 1.0, 0.5, 0.1);
 			private double previous = 1.0;
 
 			@Override
 			public void onEnable(Minecraft mc) {
 				previous = mc.options.entityDistanceScaling().get();
-				mc.options.entityDistanceScaling().set(0.5);
+				mc.options.entityDistanceScaling().set(distance.num());
 			}
 
 			@Override
 			public void onDisable(Minecraft mc) {
 				mc.options.entityDistanceScaling().set(previous);
 			}
-		}
+		},
+		new Module("HUD", Category.CLIENT, "Show FPS, coordinates and active modules") {
+			private final Setting fps = toggle("FPS", true);
+			private final Setting coords = toggle("Coords", true);
+			private final Setting modules = toggle("Modules", true);
+		},
+		new Module("Spotify", Category.CLIENT, "Now playing overlay (Windows desktop app)") {
+		},
+		INTERFACE
 	);
+
+	public static final Module ESP = get("ESP");
+	public static final Module TRACERS = get("Tracers");
+	public static final Module NAMETAGS = get("Nametags");
+	public static final Module LIGHT = get("LightDebug");
+	public static final Module STORAGE = get("StorageESP");
+	public static final Module HITBOXES = get("Hitboxes");
+	public static final Module HUD = get("HUD");
+	public static final Module SPOTIFY = get("Spotify");
 
 	private ModuleManager() {
 	}
 
-	public static boolean isOn(String name) {
+	public static Module get(String name) {
 		for (Module m : MODULES) {
 			if (m.getName().equals(name)) {
-				return m.isEnabled();
+				return m;
 			}
 		}
-		return false;
+		throw new IllegalArgumentException("No module " + name);
+	}
+
+	public static boolean isOn(String name) {
+		return get(name).isEnabled();
 	}
 
 	public static void disableAll(Minecraft mc) {
 		for (Module m : MODULES) {
-			if (m.isEnabled()) {
+			if (m != INTERFACE && m.isEnabled()) {
 				m.toggle(mc);
+			}
+		}
+	}
+
+	public static void onJoin(Minecraft mc) {
+		for (Module m : MODULES) {
+			if (m != INTERFACE && m.isEnabled()) {
+				m.onEnable(mc);
+			}
+		}
+	}
+
+	public static void onLeave() {
+		Freecam.reset();
+		for (Module m : MODULES) {
+			if (m != INTERFACE && !m.persistent()) {
+				m.setEnabled(false);
 			}
 		}
 	}
@@ -373,7 +650,7 @@ public final class ModuleManager {
 			return;
 		}
 		for (Module m : MODULES) {
-			if (m.isEnabled()) {
+			if (m != INTERFACE && m.isEnabled()) {
 				m.onTick(mc);
 			}
 		}
