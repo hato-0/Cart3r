@@ -15,6 +15,17 @@ public final class Config {
 	private Config() {
 	}
 
+	private static double parse(String s, double def) {
+		if (s == null) {
+			return def;
+		}
+		try {
+			return Double.parseDouble(s);
+		} catch (NumberFormatException e) {
+			return def;
+		}
+	}
+
 	public static void load() {
 		if (!Files.exists(FILE)) {
 			return;
@@ -26,14 +37,27 @@ public final class Config {
 			return;
 		}
 		for (Module m : ModuleManager.MODULES) {
-			m.setEnabled(Boolean.parseBoolean(p.getProperty(m.getName(), "false")));
+			if (m.persistent()) {
+				m.setEnabled(Boolean.parseBoolean(p.getProperty(m.getName(), "false")));
+			}
+			m.setKey((int) parse(p.getProperty(m.getName() + ".key"), m.getKey()));
+			for (Setting s : m.getSettings()) {
+				String raw = p.getProperty(m.getName() + ".s." + s.name());
+				if (raw != null) {
+					s.setValue(parse(raw, s.num()));
+				}
+			}
 		}
 	}
 
 	public static void save() {
 		Properties p = new Properties();
 		for (Module m : ModuleManager.MODULES) {
-			p.setProperty(m.getName(), Boolean.toString(m.isEnabled()));
+			p.setProperty(m.getName(), Boolean.toString(m.persistent() && m.isEnabled()));
+			p.setProperty(m.getName() + ".key", Integer.toString(m.getKey()));
+			for (Setting s : m.getSettings()) {
+				p.setProperty(m.getName() + ".s." + s.name(), Double.toString(s.num()));
+			}
 		}
 		try (OutputStream out = Files.newOutputStream(FILE)) {
 			p.store(out, "CART3R Client");
