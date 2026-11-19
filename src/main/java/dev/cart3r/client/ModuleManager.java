@@ -99,6 +99,43 @@ public final class ModuleManager {
 				}
 			}
 		},
+		new Module("HighJump", Category.MOVEMENT, "Jump higher") {
+			private final Setting power = num("Power", 0.42, 1.0, 0.6, 0.02);
+
+			@Override
+			public void onTick(Minecraft mc) {
+				AttributeInstance a = mc.player.getAttribute(Attributes.JUMP_STRENGTH);
+				if (a != null && Math.abs(a.getBaseValue() - power.num()) > 0.001) {
+					a.setBaseValue(power.num());
+				}
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				AttributeInstance a = mc.player.getAttribute(Attributes.JUMP_STRENGTH);
+				if (a != null) {
+					a.setBaseValue(0.42);
+				}
+			}
+		},
+		new Module("Float", Category.MOVEMENT, "Stay on top of water (sneak to dive)") {
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.isInWater() && !mc.player.isShiftKeyDown()) {
+					Vec3 v = mc.player.getDeltaMovement();
+					mc.player.setDeltaMovement(v.x, Math.max(v.y, 0.12), v.z);
+				}
+			}
+		},
+		new Module("FastLadder", Category.MOVEMENT, "Climb ladders and vines faster") {
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.onClimbable() && mc.player.horizontalCollision && !mc.player.isShiftKeyDown()) {
+					Vec3 v = mc.player.getDeltaMovement();
+					mc.player.setDeltaMovement(v.x, 0.3, v.z);
+				}
+			}
+		},
 		new Module("Spider", Category.MOVEMENT, "Climb walls you touch") {
 			@Override
 			public void onTick(Minecraft mc) {
@@ -150,7 +187,7 @@ public final class ModuleManager {
 				release();
 			}
 		},
-		new Module("Freecam", Category.MOVEMENT, "Fly the camera around without moving") {
+		new Module("Freecam", Category.VISUAL, "Fly the camera around without moving") {
 			private final Setting speed = num("Speed", 0.2, 3.0, 0.8, 0.1);
 
 			@Override
@@ -173,7 +210,7 @@ public final class ModuleManager {
 				Freecam.stop(mc);
 			}
 		},
-		new Module("Sneak", Category.MOVEMENT, "Hold sneak for you") {
+		new Module("Sneak", Category.UTILITY, "Hold sneak for you") {
 			@Override
 			public void onTick(Minecraft mc) {
 				mc.options.keyShift.setDown(true);
@@ -198,7 +235,7 @@ public final class ModuleManager {
 				mc.player.removeEffect(MobEffects.NIGHT_VISION);
 			}
 		},
-		new Module("ESP", Category.VISUAL, "Boxes around entities, visible through walls") {
+		new Module("ESP", Category.RENDER, "Boxes around entities, visible through walls") {
 			private final Setting players = toggle("Players", true);
 			private final Setting monsters = toggle("Monsters", true);
 			private final Setting passive = toggle("Passive", false);
@@ -207,6 +244,7 @@ public final class ModuleManager {
 			private final Setting style = options("Style", 0, "Box", "Corners");
 			private final Setting health = toggle("Health bar", true);
 			private final Setting names = toggle("Names", false);
+			private final Setting fill = toggle("Fill", true);
 			private final Setting glow = toggle("Glow", false);
 			private boolean glowing;
 
@@ -238,7 +276,7 @@ public final class ModuleManager {
 				clearGlow(mc);
 			}
 		},
-		new Module("Tracers", Category.VISUAL, "Lines from you to nearby entities") {
+		new Module("Tracers", Category.RENDER, "Lines from you to nearby entities") {
 			private final Setting players = toggle("Players", true);
 			private final Setting monsters = toggle("Monsters", false);
 			private final Setting passive = toggle("Passive", false);
@@ -248,7 +286,7 @@ public final class ModuleManager {
 			private final Setting thickness = num("Thickness", 1, 3, 1, 1);
 			private final Setting distance = toggle("Distance", true);
 		},
-		new Module("Nametags", Category.VISUAL, "Name, health and distance above entities") {
+		new Module("Nametags", Category.RENDER, "Name, health and distance above entities") {
 			private final Setting players = toggle("Players", true);
 			private final Setting monsters = toggle("Monsters", false);
 			private final Setting passive = toggle("Passive", false);
@@ -256,20 +294,20 @@ public final class ModuleManager {
 			private final Setting health = toggle("Health", true);
 			private final Setting distance = toggle("Distance", true);
 		},
-		new Module("LightDebug", Category.VISUAL, "Mark nearby spots where monsters can spawn") {
+		new Module("LightDebug", Category.RENDER, "Mark nearby spots where monsters can spawn") {
 			private final Setting radius = num("Radius", 4, 16, 8, 1);
 			private final Setting night = toggle("Night spots", true);
 		},
-		new Module("StorageESP", Category.VISUAL, "Find trial chambers, spawners and chests (servers: trial chambers only)") {
-			private final Setting trial = toggle("Trial spawners", true);
+		new Module("StorageESP", Category.RENDER, "Find trial chambers and vaults (singleplayer: also spawners and chests)") {
+			private final Setting trial = toggle("Trials", true);
 			private final Setting vaults = toggle("Vaults", true);
 			private final Setting spawners = toggle("Spawners", true);
 			private final Setting chests = toggle("Chests", true);
-			private final Setting ender = toggle("Ender chests", true);
+			private final Setting ender = toggle("Ender", true);
 			private final Setting labels = toggle("Labels", true);
 			private final Setting range = num("Range", 16, 256, 128, 8);
 		},
-		new Module("Hitboxes", Category.VISUAL, "Show the hitbox of every entity") {
+		new Module("Hitboxes", Category.RENDER, "Show the hitbox of every entity") {
 			private final Setting players = toggle("Players", true);
 			private final Setting monsters = toggle("Monsters", true);
 			private final Setting passive = toggle("Passive", true);
@@ -277,6 +315,32 @@ public final class ModuleManager {
 			private final Setting others = toggle("Others", false);
 			private final Setting eye = toggle("Eye line", true);
 			private final Setting range = num("Range", 8, 128, 48, 4);
+		},
+		new Module("OreESP", Category.RENDER, "Mark ores nearby. Most servers forbid this - use in singleplayer!") {
+			private final Setting radius = num("Radius", 8, 24, 16, 2);
+			private final Setting diamond = toggle("Diamond", true);
+			private final Setting debris = toggle("Debris", true);
+			private final Setting emerald = toggle("Emerald", true);
+			private final Setting gold = toggle("Gold", true);
+			private final Setting iron = toggle("Iron", false);
+			private final Setting others = toggle("Others", false);
+		},
+		new Module("Waypoints", Category.RENDER, "Show saved waypoints. Chat: /cart3r wp add <name>") {
+			private final Setting distance = toggle("Distance", true);
+			private final Setting death = toggle("Death point", true);
+			private boolean saved;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.screen instanceof DeathScreen) {
+					if (!saved && death.bool()) {
+						saved = true;
+						Waypoints.add(mc, "Death");
+					}
+				} else {
+					saved = false;
+				}
+			}
 		},
 		new Module("Zoom", Category.VISUAL, "Narrow field of view to zoom in") {
 			private final Setting fov = num("FOV", 30, 60, 30, 5);
@@ -307,6 +371,13 @@ public final class ModuleManager {
 				if (mc.player.swinging) {
 					mc.player.swingTime = Math.min(mc.player.swingTime + (int) speed.num() - 1, 5);
 				}
+			}
+		},
+		new Module("NoWeather", Category.VISUAL, "Remove rain and thunder visuals") {
+			@Override
+			public void onTick(Minecraft mc) {
+				mc.level.setRainLevel(0.0f);
+				mc.level.setThunderLevel(0.0f);
 			}
 		},
 		new Module("SpeedMine", Category.PLAYER, "Mine faster (client-side, servers may correct it)") {
@@ -495,6 +566,19 @@ public final class ModuleManager {
 				}
 			}
 		},
+		new Module("AutoMine", Category.PLAYER, "Hold the attack button for you") {
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.screen == null) {
+					mc.options.keyAttack.setDown(true);
+				}
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				mc.options.keyAttack.setDown(false);
+			}
+		},
 		new Module("AutoJump", Category.UTILITY, "Jump automatically while walking") {
 			@Override
 			public void onTick(Minecraft mc) {
@@ -585,12 +669,57 @@ public final class ModuleManager {
 				mc.options.entityDistanceScaling().set(previous);
 			}
 		},
+		new Module("LowDetail", Category.PERFORMANCE, "Disable shadows and view bobbing") {
+			private boolean shadows;
+			private boolean bob;
+			private boolean saved;
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				shadows = mc.options.entityShadows().get();
+				bob = mc.options.bobView().get();
+				saved = true;
+				mc.options.entityShadows().set(false);
+				mc.options.bobView().set(false);
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				if (saved) {
+					mc.options.entityShadows().set(shadows);
+					mc.options.bobView().set(bob);
+					saved = false;
+				}
+			}
+		},
 		new Module("HUD", Category.CLIENT, "Show FPS, coordinates and active modules") {
 			private final Setting fps = toggle("FPS", true);
 			private final Setting coords = toggle("Coords", true);
 			private final Setting modules = toggle("Modules", true);
 		},
 		new Module("Spotify", Category.CLIENT, "Now playing overlay (Windows desktop app)") {
+		},
+		new Module("Radar", Category.CLIENT, "Mini radar in the corner") {
+			private final Setting players = toggle("Players", true);
+			private final Setting monsters = toggle("Monsters", true);
+			private final Setting passive = toggle("Passive", false);
+			private final Setting items = toggle("Items", false);
+			private final Setting range = num("Range", 10, 100, 40, 5);
+			private final Setting size = num("Size", 40, 120, 80, 10);
+		},
+		new Module("ArmorHUD", Category.CLIENT, "Show your armor next to the hotbar") {
+		},
+		new Module("Panic", Category.CLIENT, "Turn off every module at once") {
+			@Override
+			public boolean persistent() {
+				return false;
+			}
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				setEnabled(false);
+				disableAll(mc);
+			}
 		},
 		INTERFACE
 	);
@@ -603,6 +732,10 @@ public final class ModuleManager {
 	public static final Module HITBOXES = get("Hitboxes");
 	public static final Module HUD = get("HUD");
 	public static final Module SPOTIFY = get("Spotify");
+	public static final Module ORES = get("OreESP");
+	public static final Module WAYPOINTS = get("Waypoints");
+	public static final Module RADAR = get("Radar");
+	public static final Module ARMOR = get("ArmorHUD");
 
 	private ModuleManager() {
 	}

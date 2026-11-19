@@ -8,6 +8,7 @@ public final class Setting {
 	private final boolean toggle;
 	private final String[] labels;
 	private double value;
+	public float anim;
 
 	private Setting(String name, double min, double max, double step, boolean toggle, double value, String[] labels) {
 		this.name = name;
@@ -17,6 +18,7 @@ public final class Setting {
 		this.toggle = toggle;
 		this.value = value;
 		this.labels = labels;
+		this.anim = toggle && value >= 0.5 ? 1f : 0f;
 	}
 
 	public static Setting number(String name, double min, double max, double def, double step) {
@@ -35,8 +37,20 @@ public final class Setting {
 		return name;
 	}
 
+	public double min() {
+		return min;
+	}
+
+	public double max() {
+		return max;
+	}
+
 	public boolean isToggle() {
 		return toggle;
+	}
+
+	public boolean isOptions() {
+		return labels != null;
 	}
 
 	public boolean bool() {
@@ -45,6 +59,14 @@ public final class Setting {
 
 	public double num() {
 		return value;
+	}
+
+	public double fraction() {
+		return max > min ? (value - min) / (max - min) : 0;
+	}
+
+	public void setFraction(double f) {
+		setValue(min + Math.max(0, Math.min(1, f)) * (max - min));
 	}
 
 	public void setValue(double v) {

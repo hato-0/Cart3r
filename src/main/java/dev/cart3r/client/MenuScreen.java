@@ -1,42 +1,96 @@
 package dev.cart3r.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class MenuScreen extends Screen {
-	private static final int PANEL_W = 340;
-	private static final int ROW_H = 22;
+	private static final int PW = 440;
+	private static final int ROW = 22;
+	private static final int[] KEYS = buildKeys();
 
 	private static Module.Category selected = Module.Category.MOVEMENT;
+	private static Module picked = null;
 
-	private record Row(Module module, int x, int y, int w, int h) {
-	}
-
-	private final List<Row> rows = new ArrayList<>();
+	private float scroll;
+	private float scrollAnim;
+	private float tabX = -1f;
+	private long catStart = System.currentTimeMillis();
+	private boolean leftWas;
 	private boolean rightWas;
-	private Module pending;
+	private boolean upWas;
+	private boolean downWas;
+	private boolean closeRequested;
+	private Module listening;
+	private Setting dragging;
+	private final boolean[] held = new boolean[400];
+	private int px;
+	private int py;
+	private int ph;
+	private int listTop;
+	private int listBottom;
+	private double mx;
+	private double my;
+	private float alpha = 1f;
+	private String hoverDesc = "";
 
 	public MenuScreen() {
 		super(Component.literal("CART3R CLIENT"));
 		Theme.restart();
-		rightWas = Minecraft.getInstance().mouseHandler.isRightPressed();
+		leftWas = Input.left();
+		rightWas = Input.right();
 	}
 
-	private int panelLeft() {
-		return (this.width - PANEL_W) / 2;
+	private static int[] buildKeys() {
+		List<Integer> l = new ArrayList<>();
+		l.add(32);
+		l.add(39);
+		for (int k = 44; k <= 57; k++) {
+			l.add(k);
+		}
+		l.add(59);
+		l.add(61);
+		for (int k = 65; k <= 93; k++) {
+			l.add(k);
+		}
+		l.add(96);
+		for (int k = 256; k <= 269; k++) {
+			l.add(k);
+		}
+		for (int k = 280; k <= 284; k++) {
+			l.add(k);
+		}
+		for (int k = 290; k <= 314; k++) {
+			l.add(k);
+		}
+		for (int k = 320; k <= 336; k++) {
+			l.add(k);
+		}
+		for (int k = 340; k <= 348; k++) {
+			l.add(k);
+		}
+		int[] out = new int[l.size()];
+		for (int i = 0; i < out.length; i++) {
+			out[i] = l.get(i);
+		}
+		return out;
 	}
 
-	private int panelTop() {
-		return Math.max(10, this.height / 2 - 140);
+	private int a(int color, double k) {
+		return Theme.alpha(color, alpha * k);
 	}
 
-	private List<Module> modules() {
+	private static boolean inside(double x, double y, int rx, int ry, int rw, int rh) {
+		return x >= rx && x < rx + rw && y >= ry && y < ry + rh;
+	}
+
+	private List<Module> mods() {
 		List<Module> out = new ArrayList<>();
 		for (Module m : ModuleManager.MODULES) {
 			if (m.getCategory() == selected) {
@@ -46,115 +100,446 @@ public class MenuScreen extends Screen {
 		return out;
 	}
 
-	private void openSettings(Module m) {
-		Minecraft.getInstance().setScreen(new ModuleSettingsScreen(this, m));
+	private float maxScroll() {
+		return Math.max(0f, mods().size() * ROW - (listBottom - listTop));
+	}
+
+	private void select(Module.Category c) {
+		selected = c;
+		scroll = 0f;
+		scrollAnim = 0f;
+		catStart = System.currentTimeMillis();
+		List<Module> l = mods();
+		if (!l.isEmpty() && (picked == null || picked.getCategory() != c)) {
+			picked = l.get(0);
+		}
 	}
 
 	private static String keyHint(Module m) {
-		if (!Theme.KEY_HINTS.bool() || m == ModuleManager.INTERFACE || m.getKey() <= 0) {
+		if (!Theme.KEY_HINTS.bool() || m.getKey() <= 0) {
 			return "";
 		}
 		return "[" + Module.keyName(m.getKey()) + "]";
 	}
 
-	@Override
-	protected void init() {
-		rows.clear();
-		int left = panelLeft();
-		int top = panelTop();
-		Module.Category[] cats = Module.Category.values();
-		int tabW = (PANEL_W - 20) / cats.length;
-		for (int i = 0; i < cats.length; i++) {
-			Module.Category c = cats[i];
-			this.addRenderableWidget(new CartButton(left + 10 + i * tabW, top + 30, tabW - 2, 18,
-				Component.literal(c.label), b -> {
-					selected = c;
-					Theme.restart();
-					this.rebuildWidgets();
-				}, CartButton.Style.TAB, () -> c == selected, () -> "", () -> ""));
+	private void startListening(Module m) {
+		for (int k : KEYS) {
+			held[k] = Input.key(k);
 		}
-
-		int y = top + 58;
-		for (Module m : modules()) {
-			CartButton b = new CartButton(left + 10, y, PANEL_W - 20, 20,
-				Component.literal(m.getName()),
-				btn -> {
-					if (m instanceof InterfaceModule) {
-						openSettings(m);
-					} else {
-						m.toggle(Minecraft.getInstance());
-					}
-				},
-				CartButton.Style.ROW,
-				m::isEnabled,
-				() -> m instanceof InterfaceModule ? "OPEN" : (m.isEnabled() ? "ON" : "OFF"),
-				() -> keyHint(m));
-			b.setTooltip(Tooltip.create(Component.literal(m.getDescription() + "\nRight-click: settings and keybind")));
-			this.addRenderableWidget(b);
-			rows.add(new Row(m, left + 10, y, PANEL_W - 20, 20));
-			y += ROW_H;
-		}
-
-		int half = (PANEL_W - 24) / 2;
-		this.addRenderableWidget(new CartButton(left + 10, y + 8, half, 20,
-			Component.literal("Disable all"), btn -> {
-				ModuleManager.disableAll(Minecraft.getInstance());
-				this.rebuildWidgets();
-			}, CartButton.Style.ACTION, () -> false, () -> "", () -> ""));
-		this.addRenderableWidget(new CartButton(left + 14 + half, y + 8, half, 20,
-			Component.literal("Close"), btn -> this.onClose(),
-			CartButton.Style.ACTION, () -> false, () -> "", () -> ""));
+		listening = m;
 	}
 
-	@Override
-	public void tick() {
-		super.tick();
-		if (pending != null) {
-			Module m = pending;
-			pending = null;
-			openSettings(m);
+	private void pollKey() {
+		for (int k : KEYS) {
+			boolean d = Input.key(k);
+			if (d && !held[k]) {
+				held[k] = true;
+				if (k == 256) {
+					listening = null;
+				} else if (k == 259 || k == 261) {
+					listening.setKey(0);
+					listening = null;
+					Config.save();
+				} else {
+					listening.setKey(k);
+					listening = null;
+					Config.save();
+				}
+				return;
+			}
+			held[k] = d;
 		}
 	}
 
 	@Override
-	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
-		super.renderBackground(g, mouseX, mouseY, delta);
-		float a = Theme.progress();
-		int accent = Theme.accent();
-		int off = Theme.offset();
-		int left = panelLeft();
-		int top = panelTop() + off;
-		int bottom = top + 58 + modules().size() * ROW_H + 44;
-		int bg = Theme.alpha(0xFF030304, Theme.OPACITY.num() * a);
-		int border = Theme.alpha(accent, a);
-		g.fill(left, top, left + PANEL_W, bottom, bg);
-		g.fill(left, top, left + PANEL_W, top + 1, border);
-		g.fill(left, bottom - 1, left + PANEL_W, bottom, border);
-		g.fill(left, top, left + 1, bottom, border);
-		g.fill(left + PANEL_W - 1, top, left + PANEL_W, bottom, border);
-		g.fill(left + 10, top + 24, left + PANEL_W - 10, top + 25, Theme.alpha(Theme.dim(accent, 0.32), a));
+	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+		scroll = Math.max(0f, Math.min(maxScroll(), scroll - (float) scrollY * 24f));
+		return true;
 	}
 
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
 		super.render(g, mouseX, mouseY, delta);
-		float a = Theme.progress();
-		int top = panelTop() + Theme.offset();
-		g.drawCenteredString(this.font, this.title, this.width / 2, top + 9, Theme.alpha(Theme.accent(), a));
-		int bottom = top + 58 + modules().size() * ROW_H + 44;
-		g.drawCenteredString(this.font, Component.literal("Left click: toggle  |  Right click: settings"),
-			this.width / 2, bottom - 12, Theme.alpha(0xFF777777, a));
+		Minecraft mc = Minecraft.getInstance();
+		Font f = this.font;
+		ph = Math.min(318, this.height - 16);
+		px = (this.width - PW) / 2;
+		py = (this.height - ph) / 2;
+		listTop = py + 58;
+		listBottom = py + ph - 28;
 
-		boolean right = Minecraft.getInstance().mouseHandler.isRightPressed();
-		if (right && !rightWas && pending == null) {
-			for (Row r : rows) {
-				if (mouseX >= r.x() && mouseX < r.x() + r.w() && mouseY >= r.y() && mouseY < r.y() + r.h()) {
-					pending = r.module();
-					break;
+		float p = Theme.progress();
+		alpha = p;
+		float s = 0.94f + 0.06f * p;
+		float cx = this.width / 2f;
+		float cy = this.height / 2f;
+		mx = (mouseX - cx) / s + cx;
+		my = (mouseY - cy) / s + cy;
+
+		boolean l = Input.left();
+		boolean r = Input.right();
+		boolean lClick = l && !leftWas;
+		boolean rClick = r && !rightWas;
+
+		if (picked == null) {
+			List<Module> first = mods();
+			if (!first.isEmpty()) {
+				picked = first.get(0);
+			}
+		}
+		if (listening != null) {
+			pollKey();
+		}
+		boolean up = Input.key(GLFW.GLFW_KEY_UP);
+		boolean down = Input.key(GLFW.GLFW_KEY_DOWN);
+		if (up && !upWas) {
+			scroll = Math.max(0f, scroll - ROW);
+		}
+		if (down && !downWas) {
+			scroll = Math.min(maxScroll(), scroll + ROW);
+		}
+		upWas = up;
+		downWas = down;
+
+		hoverDesc = "";
+		Gfx.pushScale(g, cx, cy, s);
+		drawFrame(g, f);
+		drawTabs(g, f, lClick);
+		drawList(g, f, mc, lClick, rClick);
+		drawPane(g, f, mc, lClick, rClick, l);
+		drawFooter(g, f, mc, lClick);
+		Gfx.pop(g);
+
+		if (!l && dragging != null) {
+			dragging = null;
+			Config.save();
+		}
+		leftWas = l;
+		rightWas = r;
+		if (closeRequested) {
+			closeRequested = false;
+			this.onClose();
+		}
+	}
+
+	private void drawFrame(GuiGraphics g, Font f) {
+		int accent = Theme.accent();
+		if (Theme.GLOW.bool()) {
+			Gfx.glow(g, px, py, px + PW, py + ph, 5, accent, alpha);
+		}
+		Gfx.card(g, px, py, px + PW, py + ph, 5, a(Theme.dim(accent, 0.55), 1), a(Theme.PANEL, Theme.OPACITY.num()));
+		g.drawString(f, "CART3R", px + 12, py + 9, a(accent, 1), false);
+		g.drawString(f, "CLIENT", px + 12 + f.width("CART3R") + 5, py + 9, a(Theme.MUTED, 1), false);
+		String ver = "v2.0";
+		g.drawString(f, ver, px + PW - 12 - f.width(ver), py + 9, a(Theme.MUTED, 1), false);
+		g.fill(px + 10, py + 27, px + PW - 10, py + 28, a(Theme.LINE, 1));
+	}
+
+	private void drawTabs(GuiGraphics g, Font f, boolean lClick) {
+		int accent = Theme.accent();
+		Module.Category[] cats = Module.Category.values();
+		int tw = (PW - 20) / cats.length;
+		int ty = py + 32;
+		int sel = 0;
+		for (int i = 0; i < cats.length; i++) {
+			int x1 = px + 10 + i * tw;
+			boolean hover = inside(mx, my, x1, ty, tw, 18);
+			boolean on = cats[i] == selected;
+			if (on) {
+				sel = i;
+			}
+			int col = on ? accent : (hover ? Theme.TEXT : Theme.MUTED);
+			String label = cats[i].label;
+			g.drawString(f, label, x1 + (tw - f.width(label)) / 2, ty + 5, a(col, 1), false);
+			if (lClick && hover && !on) {
+				select(cats[i]);
+			}
+		}
+		float target = px + 10 + sel * tw;
+		tabX = tabX < 0 ? target : Theme.approach(tabX, target, 16f);
+		Gfx.round(g, Math.round(tabX) + 8, ty + 17, Math.round(tabX) + tw - 8, ty + 19, 1, a(accent, 1));
+	}
+
+	private void drawSwitch(GuiGraphics g, int x, int y, float anim, float k) {
+		int accent = Theme.accent();
+		int track = Theme.mix(0xFF2A2A34, Theme.dim(accent, 0.85), anim);
+		Gfx.round(g, x, y, x + 22, y + 10, 4, a(track, k));
+		int kx = x + 1 + Math.round(anim * 12f);
+		Gfx.round(g, kx, y + 1, kx + 8, y + 9, 3, a(Theme.mix(0xFF9A9AA8, 0xFFFFFFFF, anim), k));
+	}
+
+	private void drawList(GuiGraphics g, Font f, Minecraft mc, boolean lClick, boolean rClick) {
+		int accent = Theme.accent();
+		int lx = px + 10;
+		int lw = 196;
+		List<Module> list = mods();
+		scroll = Math.max(0f, Math.min(maxScroll(), scroll));
+		scrollAnim = Theme.approach(scrollAnim, scroll, 20f);
+		long since = System.currentTimeMillis() - catStart;
+
+		g.enableScissor(lx - 2, listTop, lx + lw + 2, listBottom);
+		for (int i = 0; i < list.size(); i++) {
+			Module m = list.get(i);
+			int y = Math.round(listTop + i * ROW - scrollAnim);
+			if (y + 20 < listTop || y > listBottom) {
+				continue;
+			}
+			float k = Theme.clamp01((since - i * 30L) / 180f);
+			k = 1f - (1f - k) * (1f - k);
+			int x = lx - Math.round((1f - k) * 14f);
+			boolean inRow = inside(mx, my, lx, y, lw, 20) && my >= listTop && my < listBottom;
+			m.guiHover = Theme.approach(m.guiHover, inRow ? 1f : 0f, 18f);
+			m.guiAnim = Theme.approach(m.guiAnim, m.isEnabled() ? 1f : 0f, 14f);
+
+			int bg = Theme.mix(Theme.CARD, Theme.CARD_HOVER, m.guiHover);
+			bg = Theme.mix(bg, Theme.dim(accent, 0.28), m.guiAnim * 0.55f);
+			if (m == picked) {
+				Gfx.card(g, x, y, x + lw, y + 20, 3, a(accent, k), a(bg, k));
+			} else {
+				Gfx.round(g, x, y, x + lw, y + 20, 3, a(bg, k));
+			}
+			if (m.guiAnim > 0.02f) {
+				Gfx.round(g, x + 3, y + 4, x + 5, y + 16, 1, a(accent, k * m.guiAnim));
+			}
+			int tc = Theme.mix(0xFFB4B4C0, Theme.TEXT, Math.max(m.guiAnim, m.guiHover * 0.6f));
+			g.drawString(f, m.getName(), x + 11, y + 6, a(tc, k), false);
+
+			boolean isIface = m instanceof InterfaceModule;
+			int gx = x + lw - 18;
+			int swx1 = gx - 4 - 22;
+			if (!isIface) {
+				drawSwitch(g, swx1, y + 5, m.guiAnim, k);
+			}
+			String hint = keyHint(m);
+			if (!hint.isEmpty()) {
+				int hx = (isIface ? gx - 4 : swx1 - 6) - f.width(hint);
+				g.drawString(f, hint, hx, y + 6, a(Theme.MUTED, k), false);
+			}
+			boolean gearHit = inRow && inside(mx, my, gx, y + 3, 14, 14);
+			int gc = (gearHit || m == picked) ? accent : Theme.MUTED;
+			for (int d = 0; d < 3; d++) {
+				g.fill(gx + 2 + d * 4, y + 9, gx + 4 + d * 4, y + 11, a(gc, k));
+			}
+
+			if (inRow) {
+				hoverDesc = m.getDescription();
+				if (rClick) {
+					picked = m;
+				}
+				if (lClick) {
+					picked = m;
+					if (!gearHit && !isIface) {
+						m.toggle(mc);
+					}
 				}
 			}
 		}
-		rightWas = right;
+		g.disableScissor();
+
+		float max = maxScroll();
+		if (max > 0f) {
+			int trackH = listBottom - listTop;
+			int thumbH = Math.max(14, (int) (trackH * (trackH / (trackH + max))));
+			int thumbY = listTop + (int) ((trackH - thumbH) * (scrollAnim / max));
+			g.fill(px + 207, listTop, px + 209, listBottom, a(Theme.LINE, 1));
+			Gfx.round(g, px + 207, thumbY, px + 209, thumbY + thumbH, 1, a(accent, 1));
+		}
+	}
+
+	private static List<String> wrap(Font f, String text, int maxW, int maxLines) {
+		List<String> out = new ArrayList<>();
+		StringBuilder cur = new StringBuilder();
+		for (String word : text.split(" ")) {
+			String test = cur.length() == 0 ? word : cur + " " + word;
+			if (f.width(test) <= maxW) {
+				cur = new StringBuilder(test);
+			} else {
+				if (cur.length() > 0) {
+					out.add(cur.toString());
+				}
+				cur = new StringBuilder(word);
+				if (out.size() >= maxLines) {
+					return out;
+				}
+			}
+		}
+		if (out.size() < maxLines && cur.length() > 0) {
+			out.add(cur.toString());
+		}
+		return out;
+	}
+
+	private void drawPane(GuiGraphics g, Font f, Minecraft mc, boolean lClick, boolean rClick, boolean lHeld) {
+		int accent = Theme.accent();
+		int x = px + 214;
+		int w = PW - 224;
+		int top = listTop;
+		int bottom = listBottom;
+		Gfx.round(g, x, top, x + w, bottom, 4, a(0xFF101016, 1));
+		Module m = picked;
+		if (m == null) {
+			return;
+		}
+		g.enableScissor(x, top, x + w, bottom);
+		int cx1 = x + 8;
+		int cx2 = x + w - 8;
+		int y = top + 8;
+
+		g.drawString(f, m.getName(), cx1, y, a(accent, 1), false);
+		y += 12;
+		for (String line : wrap(f, m.getDescription(), cx2 - cx1, 3)) {
+			g.drawString(f, line, cx1, y, a(Theme.MUTED, 1), false);
+			y += 10;
+		}
+		y += 3;
+		g.fill(cx1, y, cx2, y + 1, a(Theme.LINE, 1));
+		y += 6;
+
+		if (!(m instanceof InterfaceModule)) {
+			boolean hit = inside(mx, my, cx1, y, cx2 - cx1, 16);
+			g.drawString(f, "Enabled", cx1, y + 4, a(Theme.TEXT, 1), false);
+			drawSwitch(g, cx2 - 22, y + 3, m.guiAnim, 1f);
+			if (hit && lClick) {
+				m.toggle(mc);
+			}
+			y += 20;
+		}
+
+		{
+			boolean hit = inside(mx, my, cx1, y, cx2 - cx1, 16);
+			boolean listen = listening == m;
+			g.drawString(f, "Keybind", cx1, y + 4, a(Theme.TEXT, 1), false);
+			String v = listen ? "press a key..." : Module.keyName(m.getKey());
+			int bw = f.width(v) + 12;
+			int border = (hit || listen) ? accent : 0xFF2A2A36;
+			Gfx.card(g, cx2 - bw, y, cx2, y + 16, 3, a(border, 1), a(0xFF171720, 1));
+			g.drawString(f, v, cx2 - bw + 6, y + 4, a(listen ? accent : Theme.TEXT, 1), false);
+			if (hit && lClick) {
+				startListening(m);
+			}
+			if (hit && rClick) {
+				m.setKey(0);
+				listening = null;
+				Config.save();
+			}
+			y += 22;
+		}
+
+		List<Setting> toggles = new ArrayList<>();
+		List<Setting> options = new ArrayList<>();
+		List<Setting> sliders = new ArrayList<>();
+		for (Setting s : m.getSettings()) {
+			if (s.isToggle()) {
+				toggles.add(s);
+			} else if (s.isOptions()) {
+				options.add(s);
+			} else {
+				sliders.add(s);
+			}
+		}
+
+		int cw = (cx2 - cx1 - 6) / 2;
+		for (int i = 0; i < toggles.size(); i++) {
+			Setting s = toggles.get(i);
+			int bx = cx1 + (i % 2) * (cw + 6);
+			int by = y + (i / 2) * 19;
+			if (by + 17 > bottom) {
+				break;
+			}
+			boolean hit = inside(mx, my, bx, by, cw, 17);
+			s.anim = Theme.approach(s.anim, s.bool() ? 1f : 0f, 16f);
+			Gfx.round(g, bx, by, bx + cw, by + 17, 3, a(hit ? 0xFF22222E : 0xFF181821, 1));
+			g.drawString(f, s.name(), bx + 6, by + 5, a(Theme.mix(0xFF9A9AA8, Theme.TEXT, s.anim), 1), false);
+			drawSwitch(g, bx + cw - 26, by + 3, s.anim, 1f);
+			if (hit && (lClick || rClick)) {
+				s.bump(1, false);
+				Config.save();
+			}
+		}
+		if (!toggles.isEmpty()) {
+			y += ((toggles.size() + 1) / 2) * 19 + 4;
+		}
+
+		for (Setting s : options) {
+			if (y + 18 > bottom) {
+				break;
+			}
+			boolean hit = inside(mx, my, cx1, y, cx2 - cx1, 18);
+			Gfx.round(g, cx1, y, cx2, y + 18, 3, a(hit ? 0xFF22222E : 0xFF181821, 1));
+			g.drawString(f, s.name(), cx1 + 6, y + 5, a(Theme.TEXT, 1), false);
+			String v = s.format();
+			int vw = f.width(v);
+			g.drawString(f, ">", cx2 - 12, y + 5, a(Theme.MUTED, 1), false);
+			g.drawString(f, v, cx2 - 18 - vw, y + 5, a(accent, 1), false);
+			g.drawString(f, "<", cx2 - 28 - vw, y + 5, a(Theme.MUTED, 1), false);
+			if (hit && lClick) {
+				s.bump(1, false);
+				Config.save();
+			}
+			if (hit && rClick) {
+				s.bump(-1, false);
+				Config.save();
+			}
+			y += 20;
+		}
+
+		for (Setting s : sliders) {
+			if (y + 26 > bottom) {
+				break;
+			}
+			boolean hit = inside(mx, my, cx1, y, cx2 - cx1, 26);
+			g.drawString(f, s.name(), cx1 + 2, y + 2, a(Theme.TEXT, 1), false);
+			String v = s.format();
+			g.drawString(f, v, cx2 - 2 - f.width(v), y + 2, a(accent, 1), false);
+			int tx1 = cx1 + 2;
+			int tx2 = cx2 - 2;
+			int ty = y + 15;
+			Gfx.round(g, tx1, ty, tx2, ty + 4, 2, a(0xFF2A2A34, 1));
+			int fx = tx1 + (int) ((tx2 - tx1) * s.fraction());
+			Gfx.round(g, tx1, ty, Math.max(tx1 + 4, fx), ty + 4, 2, a(accent, 1));
+			Gfx.round(g, fx - 3, ty - 3, fx + 3, ty + 7, 2, a(0xFFFFFFFF, 1));
+			if (hit && lClick) {
+				dragging = s;
+			}
+			if (dragging == s && lHeld) {
+				s.setFraction((mx - tx1) / (double) (tx2 - tx1));
+			}
+			y += 28;
+		}
+		g.disableScissor();
+	}
+
+	private void drawFooter(GuiGraphics g, Font f, Minecraft mc, boolean lClick) {
+		int accent = Theme.accent();
+		int y = py + ph - 24;
+
+		int bx = px + 10;
+		int bw = 74;
+		boolean h1 = inside(mx, my, bx, y, bw, 16);
+		Gfx.round(g, bx, y, bx + bw, y + 16, 3, a(h1 ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
+		String t1 = "Disable all";
+		g.drawString(f, t1, bx + (bw - f.width(t1)) / 2, y + 4, a(Theme.TEXT, 1), false);
+		if (h1 && lClick) {
+			ModuleManager.disableAll(mc);
+		}
+
+		int cw = 50;
+		int cx = px + PW - 10 - cw;
+		boolean h2 = inside(mx, my, cx, y, cw, 16);
+		Gfx.round(g, cx, y, cx + cw, y + 16, 3, a(h2 ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
+		String t2 = "Close";
+		g.drawString(f, t2, cx + (cw - f.width(t2)) / 2, y + 4, a(Theme.TEXT, 1), false);
+		if (h2 && lClick) {
+			closeRequested = true;
+		}
+
+		String hint = hoverDesc.isEmpty() ? "Left click: toggle   Right click: settings   Wheel: scroll" : hoverDesc;
+		int avail = (cx - 8) - (bx + bw + 8);
+		while (hint.length() > 3 && f.width(hint) > avail) {
+			hint = hint.substring(0, hint.length() - 1);
+		}
+		int hx = bx + bw + 8 + (avail - f.width(hint)) / 2;
+		g.drawString(f, hint, hx, y + 4, a(Theme.MUTED, 1), false);
 	}
 
 	@Override

@@ -8,7 +8,8 @@ import java.util.List;
 
 public abstract class Module {
 	public enum Category {
-		MOVEMENT("Movement"),
+		MOVEMENT("Move"),
+		RENDER("Render"),
 		VISUAL("Visual"),
 		PLAYER("Player"),
 		UTILITY("Utility"),
@@ -29,6 +30,10 @@ public abstract class Module {
 	private boolean enabled;
 	private int key = 0;
 	private boolean keyDown = false;
+
+	public float guiAnim;
+	public float guiHover;
+	public float hudAnim;
 
 	protected Module(String name, Category category, String description) {
 		this.name = name;
@@ -94,6 +99,7 @@ public abstract class Module {
 
 	public void setEnabled(boolean value) {
 		this.enabled = value;
+		this.guiAnim = value ? 1f : 0f;
 	}
 
 	public boolean persistent() {

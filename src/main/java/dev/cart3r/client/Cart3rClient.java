@@ -7,6 +7,9 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 public class Cart3rClient implements ClientModInitializer {
@@ -19,10 +22,45 @@ public class Cart3rClient implements ClientModInitializer {
 		Config.load();
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-			dispatcher.register(ClientCommandManager.literal("cart3r").executes(ctx -> {
-				openRequested = true;
-				return 1;
-			})));
+			dispatcher.register(ClientCommandManager.literal("cart3r")
+				.executes(ctx -> {
+					openRequested = true;
+					return 1;
+				})
+				.then(ClientCommandManager.literal("wp")
+					.then(ClientCommandManager.literal("add")
+						.then(ClientCommandManager.argument("name", StringArgumentType.word())
+							.executes(ctx -> {
+								String n = StringArgumentType.getString(ctx, "name");
+								Waypoints.add(Minecraft.getInstance(), n);
+								ctx.getSource().sendFeedback(Component.literal("Waypoint saved: " + n));
+								return 1;
+							})))
+					.then(ClientCommandManager.literal("del")
+						.then(ClientCommandManager.argument("name", StringArgumentType.word())
+							.executes(ctx -> {
+								String n = StringArgumentType.getString(ctx, "name");
+								boolean ok = Waypoints.remove(n);
+								ctx.getSource().sendFeedback(Component.literal(ok ? "Removed: " + n : "Not found: " + n));
+								return 1;
+							})))
+					.then(ClientCommandManager.literal("list")
+						.executes(ctx -> {
+							if (Waypoints.LIST.isEmpty()) {
+								ctx.getSource().sendFeedback(Component.literal("No waypoints"));
+							}
+							for (Waypoints.Point p : Waypoints.LIST) {
+								ctx.getSource().sendFeedback(Component.literal(
+									p.name() + "  " + (int) p.x() + " " + (int) p.y() + " " + (int) p.z()));
+							}
+							return 1;
+						}))
+					.then(ClientCommandManager.literal("clear")
+						.executes(ctx -> {
+							Waypoints.clear();
+							ctx.getSource().sendFeedback(Component.literal("All waypoints removed"));
+							return 1;
+						})))));
 
 		HudElementRegistry.attachElementAfter(
 			VanillaHudElements.CHAT,

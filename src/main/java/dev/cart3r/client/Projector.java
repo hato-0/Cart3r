@@ -3,7 +3,6 @@ package dev.cart3r.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public final class Projector {
@@ -12,8 +11,19 @@ public final class Projector {
 	public static int h;
 	public static double cx;
 	public static double cy;
+	public static final double[] box = new double[4];
 
-	private static double rx, ry, rz, ux, uy, uz, fx, fy, fz, focal;
+	private static final double[] tmp = new double[2];
+	private static double rx;
+	private static double ry;
+	private static double rz;
+	private static double ux;
+	private static double uy;
+	private static double uz;
+	private static double fx;
+	private static double fy;
+	private static double fz;
+	private static double focal;
 
 	private Projector() {
 	}
@@ -92,24 +102,27 @@ public final class Projector {
 		out[1] = cy + dy * s;
 	}
 
-	public static double[] bounds(AABB b) {
-		double[] o = new double[2];
+	public static boolean bounds(double x0, double y0, double z0, double x1, double y1, double z1) {
 		double minX = Double.MAX_VALUE;
 		double minY = Double.MAX_VALUE;
 		double maxX = -Double.MAX_VALUE;
 		double maxY = -Double.MAX_VALUE;
 		for (int i = 0; i < 8; i++) {
-			double x = (i & 1) == 0 ? b.minX : b.maxX;
-			double y = (i & 2) == 0 ? b.minY : b.maxY;
-			double z = (i & 4) == 0 ? b.minZ : b.maxZ;
-			if (!project(x, y, z, o)) {
-				return null;
+			double x = (i & 1) == 0 ? x0 : x1;
+			double y = (i & 2) == 0 ? y0 : y1;
+			double z = (i & 4) == 0 ? z0 : z1;
+			if (!project(x, y, z, tmp)) {
+				return false;
 			}
-			minX = Math.min(minX, o[0]);
-			minY = Math.min(minY, o[1]);
-			maxX = Math.max(maxX, o[0]);
-			maxY = Math.max(maxY, o[1]);
+			minX = Math.min(minX, tmp[0]);
+			minY = Math.min(minY, tmp[1]);
+			maxX = Math.max(maxX, tmp[0]);
+			maxY = Math.max(maxY, tmp[1]);
 		}
-		return new double[] {minX, minY, maxX, maxY};
+		box[0] = minX;
+		box[1] = minY;
+		box[2] = maxX;
+		box[3] = maxY;
+		return true;
 	}
 }
