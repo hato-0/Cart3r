@@ -230,7 +230,7 @@ public class MenuScreen extends Screen {
 		Gfx.card(g, px, py, px + PW, py + ph, 5, a(Theme.dim(accent, 0.55), 1), a(Theme.PANEL, Theme.OPACITY.num()));
 		g.drawString(f, "CART3R", px + 12, py + 9, a(accent, 1), false);
 		g.drawString(f, "CLIENT", px + 12 + f.width("CART3R") + 5, py + 9, a(Theme.MUTED, 1), false);
-		String ver = "v2.0";
+		String ver = "v3.0";
 		g.drawString(f, ver, px + PW - 12 - f.width(ver), py + 9, a(Theme.MUTED, 1), false);
 		g.fill(px + 10, py + 27, px + PW - 10, py + 28, a(Theme.LINE, 1));
 	}
@@ -523,6 +523,17 @@ public class MenuScreen extends Screen {
 			ModuleManager.disableAll(mc);
 		}
 
+		int pw2 = 58;
+		int pbx = bx + bw + 6;
+		boolean hp = inside(mx, my, pbx, y, pw2, 16);
+		Gfx.round(g, pbx, y, pbx + pw2, y + 16, 3, a(hp ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
+		String tp = "Profiles";
+		g.drawString(f, tp, pbx + (pw2 - f.width(tp)) / 2, y + 4, a(Theme.TEXT, 1), false);
+		if (hp && lClick) {
+			mc.setScreen(new ProfilesScreen());
+			return;
+		}
+
 		int cw = 50;
 		int cx = px + PW - 10 - cw;
 		boolean h2 = inside(mx, my, cx, y, cw, 16);
@@ -533,12 +544,12 @@ public class MenuScreen extends Screen {
 			closeRequested = true;
 		}
 
-		String hint = hoverDesc.isEmpty() ? "Left click: toggle   Right click: settings   Wheel: scroll" : hoverDesc;
-		int avail = (cx - 8) - (bx + bw + 8);
+		String hint = hoverDesc.isEmpty() ? "Left: toggle   Right: settings" : hoverDesc;
+		int avail = (cx - 8) - (pbx + pw2 + 8);
 		while (hint.length() > 3 && f.width(hint) > avail) {
 			hint = hint.substring(0, hint.length() - 1);
 		}
-		int hx = bx + bw + 8 + (avail - f.width(hint)) / 2;
+		int hx = pbx + pw2 + 8 + (avail - f.width(hint)) / 2;
 		g.drawString(f, hint, hx, y + 4, a(Theme.MUTED, 1), false);
 	}
 

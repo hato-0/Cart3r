@@ -128,6 +128,7 @@ public abstract class Module {
 			onDisable(mc);
 		}
 		Config.save();
+		Notify.module(name, enabled);
 	}
 
 	public void onEnable(Minecraft mc) {

@@ -11,6 +11,7 @@ public final class InterfaceModule extends Module {
 		add(Theme.OPACITY);
 		add(Theme.KEY_HINTS);
 		add(Theme.GLOW);
+		add(Theme.NOTIFY);
 		setKey(GLFW.GLFW_KEY_RIGHT_SHIFT);
 		setEnabled(true);
 	}

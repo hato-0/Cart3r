@@ -3,6 +3,8 @@ package dev.cart3r.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import org.lwjgl.glfw.GLFW;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
@@ -339,6 +341,7 @@ public final class Hud {
 	public static void render(GuiGraphics g, float pt) {
 		Theme.beginFrame();
 		Minecraft mc = Minecraft.getInstance();
+		Freecam.frame(mc);
 		if (mc.player == null || mc.level == null || mc.options.hideGui) {
 			return;
 		}
@@ -384,6 +387,10 @@ public final class Hud {
 		if (ModuleManager.SPOTIFY.isEnabled()) {
 			drawSpotify(g, mc);
 		}
+		if (ModuleManager.KEYSTROKES.isEnabled()) {
+			drawKeys(g, mc);
+		}
+		Notify.draw(g, mc.font);
 	}
 
 	private static void outline(GuiGraphics g, int x1, int y1, int x2, int y2, int c) {
@@ -837,7 +844,17 @@ public final class Hud {
 		if (hud.getBool("Coords")) {
 			lines.add(String.format("%.1f %.1f %.1f", mc.player.getX(), mc.player.getY(), mc.player.getZ()));
 		}
-		int w = f.width("CART3R");
+		if (hud.getBool("Ping") && mc.getConnection() != null) {
+			PlayerInfo pi = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+			if (pi != null) {
+				lines.add(pi.getLatency() + " ms");
+			}
+		}
+		if (hud.getBool("Time")) {
+			lines.add(java.time.LocalTime.now().format(CLOCK));
+		}
+		String prof = (hud.getBool("Profile") && !Profiles.active.isEmpty()) ? Profiles.active : "";
+		int w = f.width("CART3R") + (prof.isEmpty() ? 0 : f.width(prof) + 6);
 		for (String s : lines) {
 			w = Math.max(w, f.width(s));
 		}
@@ -845,6 +862,9 @@ public final class Hud {
 		Gfx.round(g, 4, 4, 4 + w + 12, 4 + h, 3, 0x90080810);
 		g.fill(4, 7, 6, 4 + h - 3, accent);
 		g.drawString(f, "CART3R", 11, 7, accent, false);
+		if (!prof.isEmpty()) {
+			g.drawString(f, prof, 11 + f.width("CART3R") + 6, 7, Theme.MUTED, false);
+		}
 		int y = 18;
 		for (String s : lines) {
 			g.drawString(f, s, 11, y, WHITE, false);
@@ -872,6 +892,39 @@ public final class Hud {
 				g.drawString(f, m.getName(), right - mw - 5 + off, ry + 2, Theme.alpha(accent, an), false);
 				ry += Math.round(12 * an);
 			}
+		}
+	}
+
+	private static final java.time.format.DateTimeFormatter CLOCK = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+	private static final int[] KEYCODES = {GLFW.GLFW_KEY_W, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_D, GLFW.GLFW_KEY_SPACE};
+	private static final String[] KEYLABELS = {"W", "A", "S", "D", ""};
+	private static final int[][] KEYPOS = {{20, 0, 18, 18}, {0, 20, 18, 18}, {20, 20, 18, 18}, {40, 20, 18, 18}, {0, 40, 58, 12}};
+	private static final int[][] MOUSEPOS = {{0, 54, 28, 16}, {30, 54, 28, 16}};
+	private static final float[] KEYANIM = new float[7];
+
+	private static void keyBox(GuiGraphics g, Font f, int i, int x, int y, int w, int h, boolean down, String label) {
+		KEYANIM[i] = Theme.approach(KEYANIM[i], down ? 1f : 0f, 22f);
+		int c = Theme.mix(0xA0080810, Theme.accent(), KEYANIM[i] * 0.85f);
+		Gfx.round(g, x, y, x + w, y + h, 3, c);
+		if (!label.isEmpty()) {
+			g.drawString(f, label, x + (w - f.width(label)) / 2, y + (h - 8) / 2 + 1, Theme.mix(Theme.MUTED, WHITE, KEYANIM[i]), false);
+		}
+	}
+
+	private static void drawKeys(GuiGraphics g, Minecraft mc) {
+		Font f = mc.font;
+		boolean free = mc.screen == null;
+		int ox = g.guiWidth() - 68;
+		int oy = g.guiHeight() / 2 + 10;
+		for (int i = 0; i < 5; i++) {
+			int[] p = KEYPOS[i];
+			keyBox(g, f, i, ox + p[0], oy + p[1], p[2], p[3], free && Input.key(KEYCODES[i]), KEYLABELS[i]);
+		}
+		if (ModuleManager.KEYSTROKES.getBool("Mouse")) {
+			int[] a = MOUSEPOS[0];
+			int[] b = MOUSEPOS[1];
+			keyBox(g, f, 5, ox + a[0], oy + a[1], a[2], a[3], free && Input.left(), "LMB");
+			keyBox(g, f, 6, ox + b[0], oy + b[1], b[2], b[3], free && Input.right(), "RMB");
 		}
 	}
 

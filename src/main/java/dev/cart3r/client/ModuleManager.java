@@ -136,6 +136,32 @@ public final class ModuleManager {
 				}
 			}
 		},
+		new Module("SafeWalk", Category.MOVEMENT, "Never fall off edges (auto sneak at ledges)") {
+			private boolean forced;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				LocalPlayer p = mc.player;
+				Vec3 v = p.getDeltaMovement();
+				boolean edge = p.onGround()
+					&& mc.level.noCollision(p, p.getBoundingBox().move(v.x * 3.0, -0.6, v.z * 3.0));
+				if (edge) {
+					mc.options.keyShift.setDown(true);
+					forced = true;
+				} else if (forced) {
+					mc.options.keyShift.setDown(false);
+					forced = false;
+				}
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				if (forced) {
+					mc.options.keyShift.setDown(false);
+					forced = false;
+				}
+			}
+		},
 		new Module("Spider", Category.MOVEMENT, "Climb walls you touch") {
 			@Override
 			public void onTick(Minecraft mc) {
@@ -340,6 +366,27 @@ public final class ModuleManager {
 				} else {
 					saved = false;
 				}
+			}
+		},
+		new Module("FOV", Category.VISUAL, "Change your field of view") {
+			private final Setting fov = num("FOV", 30, 110, 90, 5);
+			private int previous = 0;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				int target = (int) fov.num();
+				if (mc.options.fov().get() != target) {
+					if (previous == 0) {
+						previous = mc.options.fov().get();
+					}
+					mc.options.fov().set(target);
+				}
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				mc.options.fov().set(previous >= 30 ? previous : 70);
+				previous = 0;
 			}
 		},
 		new Module("Zoom", Category.VISUAL, "Narrow field of view to zoom in") {
@@ -696,6 +743,9 @@ public final class ModuleManager {
 			private final Setting fps = toggle("FPS", true);
 			private final Setting coords = toggle("Coords", true);
 			private final Setting modules = toggle("Modules", true);
+			private final Setting ping = toggle("Ping", false);
+			private final Setting time = toggle("Time", false);
+			private final Setting profile = toggle("Profile", true);
 		},
 		new Module("Spotify", Category.CLIENT, "Now playing overlay (Windows desktop app)") {
 		},
@@ -706,6 +756,9 @@ public final class ModuleManager {
 			private final Setting items = toggle("Items", false);
 			private final Setting range = num("Range", 10, 100, 40, 5);
 			private final Setting size = num("Size", 40, 120, 80, 10);
+		},
+		new Module("Keystrokes", Category.CLIENT, "Show pressed keys and mouse buttons") {
+			private final Setting mouse = toggle("Mouse", true);
 		},
 		new Module("ArmorHUD", Category.CLIENT, "Show your armor next to the hotbar") {
 		},
@@ -736,6 +789,7 @@ public final class ModuleManager {
 	public static final Module WAYPOINTS = get("Waypoints");
 	public static final Module RADAR = get("Radar");
 	public static final Module ARMOR = get("ArmorHUD");
+	public static final Module KEYSTROKES = get("Keystrokes");
 
 	private ModuleManager() {
 	}

@@ -20,6 +20,8 @@ public class Cart3rClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		Config.load();
+		Waypoints.load();
+		Profiles.load();
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
 			dispatcher.register(ClientCommandManager.literal("cart3r")
@@ -27,6 +29,39 @@ public class Cart3rClient implements ClientModInitializer {
 					openRequested = true;
 					return 1;
 				})
+				.then(ClientCommandManager.literal("profile")
+					.then(ClientCommandManager.literal("save")
+						.then(ClientCommandManager.argument("name", StringArgumentType.word())
+							.executes(ctx -> {
+								boolean ok = Profiles.saveCurrent(StringArgumentType.getString(ctx, "name"));
+								ctx.getSource().sendFeedback(Component.literal(ok ? "Profile saved" : "Invalid name"));
+								return 1;
+							})))
+					.then(ClientCommandManager.literal("load")
+						.then(ClientCommandManager.argument("name", StringArgumentType.word())
+							.executes(ctx -> {
+								Profiles.Profile p = Profiles.find(StringArgumentType.getString(ctx, "name"));
+								if (p == null) {
+									ctx.getSource().sendFeedback(Component.literal("Profile not found"));
+								} else {
+									Profiles.apply(Minecraft.getInstance(), p);
+								}
+								return 1;
+							})))
+					.then(ClientCommandManager.literal("del")
+						.then(ClientCommandManager.argument("name", StringArgumentType.word())
+							.executes(ctx -> {
+								boolean ok = Profiles.delete(StringArgumentType.getString(ctx, "name"));
+								ctx.getSource().sendFeedback(Component.literal(ok ? "Profile deleted" : "Profile not found"));
+								return 1;
+							})))
+					.then(ClientCommandManager.literal("list")
+						.executes(ctx -> {
+							for (Profiles.Profile p : Profiles.LIST) {
+								ctx.getSource().sendFeedback(Component.literal(p.name() + " (" + p.mods().size() + " cheats)"));
+							}
+							return 1;
+						})))
 				.then(ClientCommandManager.literal("wp")
 					.then(ClientCommandManager.literal("add")
 						.then(ClientCommandManager.argument("name", StringArgumentType.word())
@@ -66,6 +101,8 @@ public class Cart3rClient implements ClientModInitializer {
 			VanillaHudElements.CHAT,
 			Identifier.fromNamespaceAndPath("cart3rclient", "hud"),
 			(graphics, tickCounter) -> Hud.render(graphics, tickCounter.getGameTimeDeltaPartialTick(false)));
+
+		ClientTickEvents.START_CLIENT_TICK.register(Freecam::preTick);
 
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
 			int menuKey = ModuleManager.INTERFACE.getKey();
