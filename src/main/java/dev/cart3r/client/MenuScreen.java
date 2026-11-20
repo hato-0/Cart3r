@@ -273,7 +273,7 @@ public class MenuScreen extends Screen {
 		Gfx.card(g, px, py, px + PW, py + ph, 5, a(Theme.dim(accent, 0.55), 1), a(Theme.PANEL, Theme.OPACITY.num()));
 		g.drawString(f, "CART3R", px + 12, py + 9, a(accent, 1), false);
 		g.drawString(f, "CLIENT", px + 12 + f.width("CART3R") + 5, py + 9, a(Theme.MUTED, 1), false);
-		String ver = "v8.0";
+		String ver = "v9.0";
 		g.drawString(f, ver, px + PW - 12 - f.width(ver), py + 9, a(Theme.MUTED, 1), false);
 		g.fill(px + 10, py + 27, px + PW - 10, py + 28, a(Theme.LINE, 1));
 	}

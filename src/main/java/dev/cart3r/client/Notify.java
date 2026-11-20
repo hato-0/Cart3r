@@ -45,7 +45,7 @@ public final class Notify {
 			double out = age > LIFE - 300 ? (LIFE - age) / 300.0 : 1.0;
 			int w = f.width(it.text());
 			int x = (int) (8 - (w + 24) * (1.0 - ease));
-			Gfx.round(g, x, y, x + w + 16, y + 15, 3, Theme.alpha(0xFF0A0A10, 0.85 * out));
+			Gfx.round(g, x, y, x + w + 16, y + 15, 3, Theme.alpha(Theme.hudBg(), out));
 			g.fill(x, y + 2, x + 2, y + 13, Theme.alpha(it.color(), out));
 			g.drawString(f, it.text(), x + 8, y + 4, Theme.alpha(Theme.TEXT, out), false);
 			y += 18;

@@ -7,6 +7,7 @@ public final class Theme {
 	public static final Setting OPACITY = Setting.number("Panel opacity", 0.5, 1.0, 0.94, 0.02);
 	public static final Setting KEY_HINTS = Setting.toggle("Key hints", true);
 	public static final Setting GLOW = Setting.toggle("Glow", true);
+	public static final Setting HUD_OPACITY = Setting.number("HUD opacity", 0.2, 1.0, 0.8, 0.05);
 	public static final Setting NOTIFY = Setting.toggle("Notifications", true);
 
 	public static final int TEXT = 0xFFEDEDF2;
@@ -22,6 +23,10 @@ public final class Theme {
 	private static float dt = 0.016f;
 
 	private Theme() {
+	}
+
+	public static int hudBg() {
+		return alpha(0xFF080810, HUD_OPACITY.num());
 	}
 
 	public static int colorOf(int index) {

@@ -23,6 +23,8 @@ import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -162,6 +164,45 @@ public final class Hud {
 		}
 		lastX = mc.player.getX();
 		lastZ = mc.player.getZ();
+
+		if (ModuleManager.JUMPC.isEnabled()) {
+			boolean air = !mc.player.onGround();
+			if (wasGround && air && mc.player.getDeltaMovement().y > 0.2) {
+				circles.add(new double[] {mc.player.getX(), mc.player.getY() + 0.05, mc.player.getZ(), System.currentTimeMillis()});
+				while (circles.size() > 8) {
+					circles.remove(0);
+				}
+			}
+			wasGround = !air;
+		} else if (!circles.isEmpty()) {
+			circles.clear();
+		}
+
+		if (ModuleManager.WEATHER.isEnabled()) {
+			boolean rain = mc.level.isRaining();
+			boolean thunder = mc.level.isThundering();
+			if (weatherInit) {
+				if (rain != rainWas) {
+					Notify.push(rain ? "Rain started" : "Rain stopped", 0xFF4DD8FF);
+				}
+				if (thunder != thunderWas) {
+					Notify.push(thunder ? "Thunderstorm started" : "Thunderstorm ended", 0xFFFFD33D);
+				}
+			}
+			rainWas = rain;
+			thunderWas = thunder;
+			weatherInit = true;
+		} else {
+			weatherInit = false;
+		}
+
+		if (ModuleManager.SPAWNN.isEnabled()) {
+			if (t % 40 == 20) {
+				scanSpawners(mc);
+			}
+		} else if (!seen.isEmpty()) {
+			seen.clear();
+		}
 
 		if (ModuleManager.SPOTIFY.isEnabled()) {
 			Spotify.poll();
@@ -372,11 +413,15 @@ public final class Hud {
 		if (mc.player == null || mc.level == null || mc.options.hideGui) {
 			return;
 		}
+		if (ModuleManager.GRADE.isEnabled()) {
+			drawGrade(g);
+		}
 		boolean needs = ModuleManager.ESP.isEnabled() || ModuleManager.TRACERS.isEnabled()
 			|| ModuleManager.NAMETAGS.isEnabled() || ModuleManager.LIGHT.isEnabled()
 			|| ModuleManager.STORAGE.isEnabled() || ModuleManager.HITBOXES.isEnabled()
 			|| ModuleManager.ORES.isEnabled() || ModuleManager.WAYPOINTS.isEnabled()
-			|| ModuleManager.BREAD.isEnabled();
+			|| ModuleManager.BREAD.isEnabled() || ModuleManager.BLOCKOV.isEnabled()
+			|| ModuleManager.JUMPC.isEnabled() || ModuleManager.TARGET.isEnabled();
 		if (needs && Projector.begin(mc, g, pt)) {
 			if (ModuleManager.STORAGE.isEnabled()) {
 				drawStorage(g, mc);
@@ -386,6 +431,15 @@ public final class Hud {
 			}
 			if (ModuleManager.BREAD.isEnabled()) {
 				drawTrail(g);
+			}
+			if (ModuleManager.BLOCKOV.isEnabled()) {
+				drawBlockOverlay(g, mc);
+			}
+			if (ModuleManager.JUMPC.isEnabled()) {
+				drawJumpCircles(g);
+			}
+			if (ModuleManager.TARGET.isEnabled()) {
+				drawTarget(g, mc, pt);
 			}
 			if (ModuleManager.WAYPOINTS.isEnabled()) {
 				drawWaypoints(g, mc);
@@ -417,6 +471,9 @@ public final class Hud {
 		}
 		if (ModuleManager.SPOTIFY.isEnabled()) {
 			drawSpotify(g, mc);
+		}
+		if (ModuleManager.CROSS.isEnabled()) {
+			drawCrosshair(g, mc);
 		}
 		if (ModuleManager.KEYSTROKES.isEnabled()) {
 			drawKeys(g, mc);
@@ -586,6 +643,15 @@ public final class Hud {
 	private static final boolean[] HB_VIS = new boolean[8];
 	private static final double[][] HB_Q = new double[4][2];
 	private static final List<double[]> trail = new ArrayList<>();
+	private static final List<double[]> circles = new ArrayList<>();
+	private static final java.util.Set<Long> seen = new java.util.HashSet<>();
+	private static final int[] PAL = {0, 0xFFFFFFFF, 0xFFFF3B3B, 0xFF45E36B, 0xFF3D8BFF, 0xFFFFD33D, 0xFFFF4FA3};
+	private static final int[] GRADES = {0xFFFFA040, 0xFF4090FF, 0xFFFF6A3D, 0xFF40FFB0, 0xFF1A2A6A, 0xFFFF6AA0};
+	private static boolean wasGround = true;
+	private static boolean weatherInit;
+	private static boolean rainWas;
+	private static boolean thunderWas;
+	private static float crossDyn;
 	private static final java.util.ArrayDeque<Long> clicks = new java.util.ArrayDeque<>();
 	private static boolean cpsWas;
 	private static double speedVal;
@@ -909,7 +975,7 @@ public final class Hud {
 			w = Math.max(w, f.width(s));
 		}
 		int h = 12 + lines.size() * 11;
-		Gfx.round(g, 4, 4, 4 + w + 12, 4 + h, 3, 0x90080810);
+		Gfx.round(g, 4, 4, 4 + w + 12, 4 + h, 3, Theme.hudBg());
 		g.fill(4, 7, 6, 4 + h - 3, accent);
 		g.drawString(f, "CART3R", 11, 7, accent, false);
 		if (!prof.isEmpty()) {
@@ -937,7 +1003,7 @@ public final class Hud {
 				int mw = f.width(m.getName());
 				float an = m.hudAnim;
 				int off = (int) ((1f - an) * (mw + 14));
-				Gfx.round(g, right - mw - 8 + off, ry, right + off, ry + 11, 2, Theme.alpha(0xFF0A0A10, 0.75 * an));
+				Gfx.round(g, right - mw - 8 + off, ry, right + off, ry + 11, 2, Theme.alpha(Theme.hudBg(), an));
 				g.fill(right - 2 + off, ry, right + off, ry + 11, Theme.alpha(accent, an));
 				g.drawString(f, m.getName(), right - mw - 5 + off, ry + 2, Theme.alpha(accent, an), false);
 				ry += Math.round(12 * an);
@@ -992,6 +1058,192 @@ public final class Hud {
 		}
 	}
 
+	private static int pick(Module m) {
+		int i = (int) m.getNum("Color");
+		return i <= 0 || i >= PAL.length ? Theme.accent() : PAL[i];
+	}
+
+	private static void scanSpawners(Minecraft mc) {
+		Module m = ModuleManager.SPAWNN;
+		int range = (int) m.getNum("Range");
+		double r2 = (double) range * range;
+		boolean single = mc.isSingleplayer();
+		int pcx = mc.player.getBlockX() >> 4;
+		int pcz = mc.player.getBlockZ() >> 4;
+		int cr = range / 16 + 1;
+		BlockPos me = mc.player.blockPosition();
+		if (seen.size() > 500) {
+			seen.clear();
+		}
+		for (int cx = pcx - cr; cx <= pcx + cr; cx++) {
+			for (int cz = pcz - cr; cz <= pcz + cr; cz++) {
+				if (!mc.level.hasChunk(cx, cz)) {
+					continue;
+				}
+				for (BlockEntity be : mc.level.getChunk(cx, cz).getBlockEntities().values()) {
+					boolean trial = be.getBlockState().is(Blocks.TRIAL_SPAWNER);
+					boolean reg = be instanceof SpawnerBlockEntity;
+					if (!(trial || (reg && single))) {
+						continue;
+					}
+					BlockPos p = be.getBlockPos();
+					double d2 = p.distSqr(me);
+					if (d2 > r2 || !seen.add(p.asLong())) {
+						continue;
+					}
+					Notify.push((trial ? "Trial spawner " : "Spawner ") + (int) Math.sqrt(d2) + "m", trial ? 0xFF4DD8FF : 0xFFFF3B3B);
+				}
+			}
+		}
+	}
+
+	private static void drawGrade(GuiGraphics g) {
+		Module m = ModuleManager.GRADE;
+		int w = g.guiWidth();
+		int h = g.guiHeight();
+		g.fill(0, 0, w, h, Theme.alpha(GRADES[(int) m.getNum("Preset")], m.getNum("Strength")));
+		if (m.getBool("Vignette")) {
+			int band = (int) (h * 0.28);
+			int c = Theme.alpha(0xFF000000, m.getNum("Vignette strength"));
+			g.fillGradient(0, 0, w, band, c, 0x00000000);
+			g.fillGradient(0, h - band, w, h, 0x00000000, c);
+		}
+	}
+
+	private static void drawBlockOverlay(GuiGraphics g, Minecraft mc) {
+		if (!(mc.hitResult instanceof BlockHitResult bh) || bh.getType() != HitResult.Type.BLOCK) {
+			return;
+		}
+		BlockPos p = bh.getBlockPos();
+		if (!Projector.bounds(p.getX(), p.getY(), p.getZ(), p.getX() + 1, p.getY() + 1, p.getZ() + 1)) {
+			return;
+		}
+		int x1 = (int) Math.floor(Projector.box[0]);
+		int y1 = (int) Math.floor(Projector.box[1]);
+		int x2 = (int) Math.ceil(Projector.box[2]);
+		int y2 = (int) Math.ceil(Projector.box[3]);
+		if (!onScreen(x1, y1, x2, y2)) {
+			return;
+		}
+		Module m = ModuleManager.BLOCKOV;
+		int c = pick(m);
+		if (m.getBool("Fill")) {
+			g.fill(x1, y1, x2, y2, Theme.alpha(c, m.getNum("Fill opacity")));
+		}
+		int th = (int) m.getNum("Thickness");
+		for (int i = 0; i < th; i++) {
+			outline(g, x1 - i, y1 - i, x2 + i, y2 + i, c);
+		}
+	}
+
+	private static void ring(GuiGraphics g, double x, double y, double z, double r, double spin, int color, boolean dashed) {
+		int segs = 28;
+		boolean prevOk = false;
+		double ppx = 0;
+		double ppy = 0;
+		for (int i = 0; i <= segs; i++) {
+			double a = spin + Math.PI * 2.0 * i / segs;
+			boolean ok = Projector.project(x + Math.cos(a) * r, y, z + Math.sin(a) * r, TMP);
+			if (ok && prevOk && (!dashed || (i % 4) < 3)) {
+				edge(g, ppx, ppy, TMP[0], TMP[1], color);
+			}
+			prevOk = ok;
+			ppx = TMP[0];
+			ppy = TMP[1];
+		}
+	}
+
+	private static void drawJumpCircles(GuiGraphics g) {
+		Module m = ModuleManager.JUMPC;
+		long now = System.currentTimeMillis();
+		double dur = m.getNum("Duration");
+		double max = m.getNum("Size");
+		int c = pick(m);
+		circles.removeIf(o -> now - (long) o[3] > dur);
+		for (double[] o : circles) {
+			double t = (now - (long) o[3]) / dur;
+			double e = 1.0 - Math.pow(1.0 - t, 3);
+			ring(g, o[0], o[1], o[2], 0.2 + max * e, 0, Theme.alpha(c, 1.0 - t), false);
+		}
+	}
+
+	private static void drawTarget(GuiGraphics g, Minecraft mc, float pt) {
+		Entity e = mc.crosshairPickEntity;
+		if (e == null || e.isRemoved() || Freecam.active()) {
+			return;
+		}
+		Module m = ModuleManager.TARGET;
+		int c = pick(m);
+		Vec3 p = e.getPosition(pt);
+		if (m.getNum("Style") >= 0.5) {
+			double hw = e.getBbWidth() / 2.0;
+			if (Projector.bounds(p.x - hw, p.y, p.z - hw, p.x + hw, p.y + e.getBbHeight(), p.z + hw)) {
+				int x1 = (int) Math.floor(Projector.box[0]);
+				int y1 = (int) Math.floor(Projector.box[1]);
+				int x2 = (int) Math.ceil(Projector.box[2]);
+				int y2 = (int) Math.ceil(Projector.box[3]);
+				if (onScreen(x1, y1, x2, y2)) {
+					corners(g, x1 - 2, y1 - 2, x2 + 2, y2 + 2, c);
+				}
+			}
+			return;
+		}
+		long now = System.currentTimeMillis();
+		double spin = (now % 2400L) / 2400.0 * Math.PI * 2.0;
+		double bob = (Math.sin(now / 350.0) + 1.0) * 0.5 * e.getBbHeight() * 0.9;
+		double r = e.getBbWidth() * 0.8 + 0.1;
+		ring(g, p.x, p.y + 0.05, p.z, r, spin, c, true);
+		ring(g, p.x, p.y + 0.05 + bob, p.z, r * 0.9, -spin, Theme.alpha(c, 0.55), true);
+	}
+
+	private static void crossShape(GuiGraphics g, int cx, int cy, int style, int size, int gap, int th, int color) {
+		int lo = cy - th / 2;
+		int lx = cx - th / 2;
+		if (style == 0 || style == 3) {
+			g.fill(cx - gap - size, lo, cx - gap, lo + th, color);
+			g.fill(cx + gap, lo, cx + gap + size, lo + th, color);
+			g.fill(lx, cy - gap - size, lx + th, cy - gap, color);
+			g.fill(lx, cy + gap, lx + th, cy + gap + size, color);
+		}
+		if (style == 1 || style == 3) {
+			int d = Math.max(1, th);
+			g.fill(cx - d / 2, cy - d / 2, cx - d / 2 + d + 1, cy - d / 2 + d + 1, color);
+		}
+		if (style == 2) {
+			int r = gap + size;
+			for (int i = 0; i < 32; i++) {
+				double a = Math.PI * 2.0 * i / 32.0;
+				int x = cx + (int) Math.round(Math.cos(a) * r);
+				int y = cy + (int) Math.round(Math.sin(a) * r);
+				g.fill(x, y, x + th, y + th, color);
+			}
+		}
+	}
+
+	private static void drawCrosshair(GuiGraphics g, Minecraft mc) {
+		if (mc.screen != null || !mc.options.getCameraType().isFirstPerson()) {
+			return;
+		}
+		Module m = ModuleManager.CROSS;
+		double v = Math.hypot(mc.player.getDeltaMovement().x, mc.player.getDeltaMovement().z) * 20.0;
+		float target = m.getBool("Dynamic") ? (float) Math.min(5.0, v * 0.8) : 0f;
+		crossDyn = Theme.approach(crossDyn, target, 12f);
+		int cx = g.guiWidth() / 2;
+		int cy = g.guiHeight() / 2;
+		int style = (int) m.getNum("Style");
+		int size = (int) m.getNum("Size");
+		int gap = (int) (m.getNum("Gap") + crossDyn);
+		int th = (int) m.getNum("Thick");
+		if (m.getBool("Outline")) {
+			int s = 0xB0000000;
+			crossShape(g, cx - 1, cy, style, size, gap, th, s);
+			crossShape(g, cx + 1, cy, style, size, gap, th, s);
+			crossShape(g, cx, cy - 1, style, size, gap, th, s);
+			crossShape(g, cx, cy + 1, style, size, gap, th, s);
+		}
+		crossShape(g, cx, cy, style, size, gap, th, pick(m));
+	}
+
 	private static void drawTrail(GuiGraphics g) {
 		int n = trail.size();
 		if (n < 2) {
@@ -1021,7 +1273,7 @@ public final class Hud {
 		int accent = Theme.accent();
 		double heading = (((mc.player.getYRot() + 180.0) % 360.0) + 360.0) % 360.0;
 		String[] names = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-		Gfx.round(g, cx - half - 8, y, cx + half + 8, y + 16, 3, 0x90080810);
+		Gfx.round(g, cx - half - 8, y, cx + half + 8, y + 16, 3, Theme.hudBg());
 		for (int i = 0; i < 24; i++) {
 			double d = ((i * 15 - heading + 540.0) % 360.0) - 180.0;
 			double dx = d * 1.5;
@@ -1055,7 +1307,7 @@ public final class Hud {
 			String time = e.isInfiniteDuration() ? "--" : String.format("%d:%02d", secs / 60, secs % 60);
 			int w = f.width(name) + f.width(time) + 16;
 			int c = e.getEffect().value().isBeneficial() ? 0xFF45E36B : 0xFFFF3B3B;
-			Gfx.round(g, 4, y, 4 + w, y + 12, 2, 0x90080810);
+			Gfx.round(g, 4, y, 4 + w, y + 12, 2, Theme.hudBg());
 			g.fill(4, y + 1, 6, y + 11, c);
 			g.drawString(f, name, 10, y + 2, WHITE, false);
 			g.drawString(f, time, 4 + w - 4 - f.width(time), y + 2, Theme.MUTED, false);

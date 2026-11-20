@@ -385,6 +385,41 @@ public final class ModuleManager {
 		new Module("Breadcrumbs", Category.RENDER, "Draw a trail of where you walked") {
 			private final Setting length = num("Length", 20, 200, 100, 10);
 		},
+		new Module("BlockOverlay", Category.RENDER, "Highlight the block you are looking at") {
+			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
+			private final Setting fill = toggle("Fill", true);
+			private final Setting opacity = num("Fill opacity", 0.05, 0.6, 0.2, 0.05);
+			private final Setting thick = num("Thickness", 1, 3, 1, 1);
+		},
+		new Module("JumpCircles", Category.VISUAL, "Expanding ring where you jump") {
+			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
+			private final Setting size = num("Size", 1, 4, 1.8, 0.2);
+			private final Setting duration = num("Duration", 300, 1500, 700, 100);
+		},
+		new Module("TargetESP", Category.RENDER, "Animated marker on the entity you look at") {
+			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
+			private final Setting style = options("Style", 0, "Ring", "Corners");
+		},
+		new Module("WeatherNotifier", Category.UTILITY, "Message when rain or thunder starts and stops") {
+		},
+		new Module("SpawnerNotifier", Category.UTILITY, "Message when a spawner is nearby (singleplayer; trial spawners everywhere)") {
+			private final Setting range = num("Range", 16, 128, 64, 8);
+		},
+		new Module("ColorGrade", Category.VISUAL, "Screen tint and vignette") {
+			private final Setting preset = options("Preset", 0, "Warm", "Cool", "Sunset", "Mint", "Night", "Rose");
+			private final Setting strength = num("Strength", 0.02, 0.4, 0.12, 0.02);
+			private final Setting vignette = toggle("Vignette", true);
+			private final Setting vstrength = num("Vignette strength", 0.1, 0.8, 0.4, 0.1);
+		},
+		new Module("Crosshair+", Category.CLIENT, "Custom crosshair that replaces the vanilla one") {
+			private final Setting style = options("Style", 0, "Cross", "Dot", "Circle", "Plus");
+			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
+			private final Setting size = num("Size", 2, 12, 5, 1);
+			private final Setting gap = num("Gap", 0, 8, 3, 1);
+			private final Setting thick = num("Thick", 1, 3, 1, 1);
+			private final Setting dynamic = toggle("Dynamic", true);
+			private final Setting outline = toggle("Outline", true);
+		},
 		new Module("FOV", Category.VISUAL, "Change your field of view") {
 			private final Setting fov = num("FOV", 30, 110, 90, 5);
 			private int previous = 0;
@@ -875,6 +910,13 @@ public final class ModuleManager {
 	public static final Module BREAD = get("Breadcrumbs");
 	public static final Module COMPASS = get("Compass");
 	public static final Module EFFECTS = get("Effects");
+	public static final Module BLOCKOV = get("BlockOverlay");
+	public static final Module JUMPC = get("JumpCircles");
+	public static final Module TARGET = get("TargetESP");
+	public static final Module WEATHER = get("WeatherNotifier");
+	public static final Module SPAWNN = get("SpawnerNotifier");
+	public static final Module GRADE = get("ColorGrade");
+	public static final Module CROSS = get("Crosshair+");
 
 	private ModuleManager() {
 	}

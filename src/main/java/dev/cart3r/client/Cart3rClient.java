@@ -97,6 +97,12 @@ public class Cart3rClient implements ClientModInitializer {
 							return 1;
 						})))));
 
+		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, tickCounter) -> {
+			if (!ModuleManager.CROSS.isEnabled()) {
+				original.render(graphics, tickCounter);
+			}
+		});
+
 		HudElementRegistry.attachElementAfter(
 			VanillaHudElements.CHAT,
 			Identifier.fromNamespaceAndPath("cart3rclient", "hud"),
@@ -126,7 +132,7 @@ public class Cart3rClient implements ClientModInitializer {
 			}
 			if (!joined) {
 				joined = true;
-				Notify.push("CART3R v8 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
+				Notify.push("CART3R v9 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
 				ModuleManager.onJoin(mc);
 			}
 
