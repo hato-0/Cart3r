@@ -162,6 +162,20 @@ public final class ModuleManager {
 				}
 			}
 		},
+		new Module("Glide", Category.MOVEMENT, "Fall slowly (combine with NoFall to avoid damage)") {
+			private final Setting fall = num("Fall speed", 0.02, 0.3, 0.08, 0.02);
+
+			@Override
+			public void onTick(Minecraft mc) {
+				LocalPlayer p = mc.player;
+				if (!p.onGround() && !p.isInWater() && !p.isFallFlying() && !p.getAbilities().flying) {
+					Vec3 v = p.getDeltaMovement();
+					if (v.y < -fall.num()) {
+						p.setDeltaMovement(v.x, -fall.num(), v.z);
+					}
+				}
+			}
+		},
 		new Module("Spider", Category.MOVEMENT, "Climb walls you touch") {
 			@Override
 			public void onTick(Minecraft mc) {
@@ -367,6 +381,9 @@ public final class ModuleManager {
 					saved = false;
 				}
 			}
+		},
+		new Module("Breadcrumbs", Category.RENDER, "Draw a trail of where you walked") {
+			private final Setting length = num("Length", 20, 200, 100, 10);
 		},
 		new Module("FOV", Category.VISUAL, "Change your field of view") {
 			private final Setting fov = num("FOV", 30, 110, 90, 5);
@@ -739,6 +756,65 @@ public final class ModuleManager {
 				}
 			}
 		},
+		new Module("FPSBoost", Category.PERFORMANCE, "Lower render distance and details for more FPS") {
+			private final Setting render = num("Render distance", 4, 16, 8, 1);
+			private final Setting simulation = num("Simulation", 5, 12, 6, 1);
+			private int pr;
+			private int ps;
+			private int pb;
+			private boolean pShadow;
+			private boolean pBob;
+			private ParticleStatus pParticles;
+			private boolean saved;
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				pr = mc.options.renderDistance().get();
+				ps = mc.options.simulationDistance().get();
+				pb = mc.options.biomeBlendRadius().get();
+				pShadow = mc.options.entityShadows().get();
+				pBob = mc.options.bobView().get();
+				pParticles = mc.options.particles().get();
+				saved = true;
+				apply(mc);
+			}
+
+			private void apply(Minecraft mc) {
+				if (mc.options.renderDistance().get() != (int) render.num()) {
+					mc.options.renderDistance().set((int) render.num());
+				}
+				if (mc.options.simulationDistance().get() != (int) simulation.num()) {
+					mc.options.simulationDistance().set((int) simulation.num());
+				}
+				mc.options.biomeBlendRadius().set(0);
+				mc.options.entityShadows().set(false);
+				mc.options.bobView().set(false);
+				mc.options.particles().set(ParticleStatus.MINIMAL);
+			}
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.tickCount % 40 == 0 && saved) {
+					apply(mc);
+				}
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				if (!saved) {
+					return;
+				}
+				saved = false;
+				mc.options.renderDistance().set(pr);
+				mc.options.simulationDistance().set(ps);
+				mc.options.biomeBlendRadius().set(pb);
+				mc.options.entityShadows().set(pShadow);
+				mc.options.bobView().set(pBob);
+				if (pParticles != null) {
+					mc.options.particles().set(pParticles);
+				}
+			}
+		},
 		new Module("HUD", Category.CLIENT, "Show FPS, coordinates and active modules") {
 			private final Setting fps = toggle("FPS", true);
 			private final Setting coords = toggle("Coords", true);
@@ -746,6 +822,7 @@ public final class ModuleManager {
 			private final Setting ping = toggle("Ping", false);
 			private final Setting time = toggle("Time", false);
 			private final Setting profile = toggle("Profile", true);
+			private final Setting speed = toggle("Speed", false);
 		},
 		new Module("Spotify", Category.CLIENT, "Now playing overlay (Windows desktop app)") {
 		},
@@ -757,8 +834,13 @@ public final class ModuleManager {
 			private final Setting range = num("Range", 10, 100, 40, 5);
 			private final Setting size = num("Size", 40, 120, 80, 10);
 		},
+		new Module("Compass", Category.CLIENT, "Direction bar at the top of the screen") {
+		},
+		new Module("Effects", Category.CLIENT, "Show your active potion effects") {
+		},
 		new Module("Keystrokes", Category.CLIENT, "Show pressed keys and mouse buttons") {
 			private final Setting mouse = toggle("Mouse", true);
+			private final Setting cps = toggle("CPS", true);
 		},
 		new Module("ArmorHUD", Category.CLIENT, "Show your armor next to the hotbar") {
 		},
@@ -790,6 +872,9 @@ public final class ModuleManager {
 	public static final Module RADAR = get("Radar");
 	public static final Module ARMOR = get("ArmorHUD");
 	public static final Module KEYSTROKES = get("Keystrokes");
+	public static final Module BREAD = get("Breadcrumbs");
+	public static final Module COMPASS = get("Compass");
+	public static final Module EFFECTS = get("Effects");
 
 	private ModuleManager() {
 	}

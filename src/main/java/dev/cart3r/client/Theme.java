@@ -1,7 +1,7 @@
 package dev.cart3r.client;
 
 public final class Theme {
-	public static final Setting ACCENT = Setting.options("Accent", 0, "Crimson", "Blue", "Green", "Purple", "Orange");
+	public static final Setting ACCENT = Setting.options("Accent", 0, "Crimson", "Blue", "Green", "Purple", "Orange", "Cyan", "Pink", "Rainbow");
 	public static final Setting ANIMATIONS = Setting.toggle("Animations", true);
 	public static final Setting ANIM_MS = Setting.number("Anim ms", 100, 600, 250, 50);
 	public static final Setting OPACITY = Setting.number("Panel opacity", 0.5, 1.0, 0.94, 0.02);
@@ -16,7 +16,7 @@ public final class Theme {
 	public static final int PANEL = 0xFF0A0A0F;
 	public static final int LINE = 0xFF22222C;
 
-	private static final int[] COLORS = {0xFFFF1F3D, 0xFF3D8BFF, 0xFF2DD36F, 0xFFA855F7, 0xFFFF9F1C};
+	private static final int[] COLORS = {0xFFFF1F3D, 0xFF3D8BFF, 0xFF2DD36F, 0xFFA855F7, 0xFFFF9F1C, 0xFF22D3EE, 0xFFFF4FA3, 0xFFFFFFFF};
 	private static long start = 0;
 	private static long last = System.nanoTime();
 	private static float dt = 0.016f;
@@ -25,12 +25,34 @@ public final class Theme {
 	}
 
 	public static int colorOf(int index) {
-		return COLORS[Math.max(0, Math.min(COLORS.length - 1, index))];
+		int i = Math.max(0, Math.min(COLORS.length - 1, index));
+		return i == COLORS.length - 1 ? rainbow() : COLORS[i];
 	}
 
 	public static int accent() {
-		int i = (int) Math.round(ACCENT.num());
-		return COLORS[Math.max(0, Math.min(COLORS.length - 1, i))];
+		return colorOf((int) Math.round(ACCENT.num()));
+	}
+
+	private static int rainbow() {
+		float h = (System.currentTimeMillis() % 6000L) / 6000f * 6f;
+		int i = (int) h;
+		float f = h - i;
+		float v = 1f;
+		float p = 0.25f;
+		float q = 1f - f * 0.75f;
+		float t = 0.25f + f * 0.75f;
+		float r;
+		float g;
+		float b;
+		switch (i % 6) {
+			case 0 -> { r = v; g = t; b = p; }
+			case 1 -> { r = q; g = v; b = p; }
+			case 2 -> { r = p; g = v; b = t; }
+			case 3 -> { r = p; g = q; b = v; }
+			case 4 -> { r = t; g = p; b = v; }
+			default -> { r = v; g = p; b = q; }
+		}
+		return 0xFF000000 | ((int) (r * 255) << 16) | ((int) (g * 255) << 8) | (int) (b * 255);
 	}
 
 	public static int dim(int color, double f) {

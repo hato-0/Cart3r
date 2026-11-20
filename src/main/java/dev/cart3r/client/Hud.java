@@ -7,6 +7,7 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import org.lwjgl.glfw.GLFW;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -135,6 +136,32 @@ public final class Hud {
 			oreNext = new ArrayList<>();
 			oreLayer = 0;
 		}
+
+		if (ModuleManager.BREAD.isEnabled()) {
+			if (t % 4 == 0) {
+				double bx = mc.player.getX();
+				double by = mc.player.getY() + 0.1;
+				double bz = mc.player.getZ();
+				double[] last = trail.isEmpty() ? null : trail.get(trail.size() - 1);
+				if (last == null || sq(bx - last[0]) + sq(by - last[1]) + sq(bz - last[2]) > 0.64) {
+					trail.add(new double[] {bx, by, bz});
+				}
+				int max = (int) ModuleManager.BREAD.getNum("Length");
+				while (trail.size() > max) {
+					trail.remove(0);
+				}
+			}
+		} else if (!trail.isEmpty()) {
+			trail.clear();
+		}
+
+		if (ModuleManager.HUD.isEnabled()) {
+			double dx = mc.player.getX() - lastX;
+			double dz = mc.player.getZ() - lastZ;
+			speedVal += (Math.hypot(dx, dz) * 20.0 - speedVal) * 0.2;
+		}
+		lastX = mc.player.getX();
+		lastZ = mc.player.getZ();
 
 		if (ModuleManager.SPOTIFY.isEnabled()) {
 			Spotify.poll();
@@ -348,13 +375,17 @@ public final class Hud {
 		boolean needs = ModuleManager.ESP.isEnabled() || ModuleManager.TRACERS.isEnabled()
 			|| ModuleManager.NAMETAGS.isEnabled() || ModuleManager.LIGHT.isEnabled()
 			|| ModuleManager.STORAGE.isEnabled() || ModuleManager.HITBOXES.isEnabled()
-			|| ModuleManager.ORES.isEnabled() || ModuleManager.WAYPOINTS.isEnabled();
+			|| ModuleManager.ORES.isEnabled() || ModuleManager.WAYPOINTS.isEnabled()
+			|| ModuleManager.BREAD.isEnabled();
 		if (needs && Projector.begin(mc, g, pt)) {
 			if (ModuleManager.STORAGE.isEnabled()) {
 				drawStorage(g, mc);
 			}
 			if (ModuleManager.ORES.isEnabled()) {
 				drawOres(g);
+			}
+			if (ModuleManager.BREAD.isEnabled()) {
+				drawTrail(g);
 			}
 			if (ModuleManager.WAYPOINTS.isEnabled()) {
 				drawWaypoints(g, mc);
@@ -389,6 +420,12 @@ public final class Hud {
 		}
 		if (ModuleManager.KEYSTROKES.isEnabled()) {
 			drawKeys(g, mc);
+		}
+		if (ModuleManager.COMPASS.isEnabled()) {
+			drawCompass(g, mc);
+		}
+		if (ModuleManager.EFFECTS.isEnabled()) {
+			drawEffects(g, mc);
 		}
 		Notify.draw(g, mc.font);
 	}
@@ -545,6 +582,16 @@ public final class Hud {
 		}
 	}
 
+	private static final double[][] HB_C = new double[8][2];
+	private static final boolean[] HB_VIS = new boolean[8];
+	private static final double[][] HB_Q = new double[4][2];
+	private static final List<double[]> trail = new ArrayList<>();
+	private static final java.util.ArrayDeque<Long> clicks = new java.util.ArrayDeque<>();
+	private static boolean cpsWas;
+	private static double speedVal;
+	private static double lastX;
+	private static double lastZ;
+
 	private static final int[][] EDGES = {
 		{0, 1}, {2, 3}, {4, 5}, {6, 7},
 		{0, 2}, {1, 3}, {4, 6}, {5, 7},
@@ -564,8 +611,8 @@ public final class Hud {
 		Module m = ModuleManager.HITBOXES;
 		double r2 = sq(m.getNum("Range"));
 		boolean eye = m.getBool("Eye line");
-		double[][] c = new double[8][2];
-		boolean[] vis = new boolean[8];
+		double[][] c = HB_C;
+		boolean[] vis = HB_VIS;
 		int shown = 0;
 		for (Tgt t : targets) {
 			Entity e = t.e;
@@ -607,7 +654,7 @@ public final class Hud {
 				double ey = p.y + e.getEyeHeight();
 				double[] xs = {x0, x1, x1, x0};
 				double[] zs = {z0, z0, z1, z1};
-				double[][] q = new double[4][2];
+				double[][] q = HB_Q;
 				boolean ok = true;
 				for (int i = 0; i < 4; i++) {
 					if (!Projector.project(xs[i], ey, zs[i], TMP)) {
@@ -844,6 +891,9 @@ public final class Hud {
 		if (hud.getBool("Coords")) {
 			lines.add(String.format("%.1f %.1f %.1f", mc.player.getX(), mc.player.getY(), mc.player.getZ()));
 		}
+		if (hud.getBool("Speed")) {
+			lines.add(String.format("%.1f b/s", speedVal));
+		}
 		if (hud.getBool("Ping") && mc.getConnection() != null) {
 			PlayerInfo pi = mc.getConnection().getPlayerInfo(mc.player.getUUID());
 			if (pi != null) {
@@ -925,6 +975,91 @@ public final class Hud {
 			int[] b = MOUSEPOS[1];
 			keyBox(g, f, 5, ox + a[0], oy + a[1], a[2], a[3], free && Input.left(), "LMB");
 			keyBox(g, f, 6, ox + b[0], oy + b[1], b[2], b[3], free && Input.right(), "RMB");
+		}
+		if (ModuleManager.KEYSTROKES.getBool("CPS")) {
+			long now = System.currentTimeMillis();
+			boolean down = free && Input.left();
+			if (down && !cpsWas) {
+				clicks.addLast(now);
+			}
+			cpsWas = down;
+			while (!clicks.isEmpty() && now - clicks.peekFirst() > 1000L) {
+				clicks.pollFirst();
+			}
+			String s = clicks.size() + " CPS";
+			int sy = oy + (ModuleManager.KEYSTROKES.getBool("Mouse") ? 74 : 56);
+			g.drawString(f, s, ox + (58 - f.width(s)) / 2, sy, Theme.MUTED, false);
+		}
+	}
+
+	private static void drawTrail(GuiGraphics g) {
+		int n = trail.size();
+		if (n < 2) {
+			return;
+		}
+		boolean prevOk = false;
+		double ppx = 0;
+		double ppy = 0;
+		int accent = Theme.accent();
+		for (int i = 0; i < n; i++) {
+			double[] p = trail.get(i);
+			boolean ok = Projector.project(p[0], p[1], p[2], TMP);
+			if (ok && prevOk) {
+				edge(g, ppx, ppy, TMP[0], TMP[1], Theme.alpha(accent, 0.2 + 0.8 * i / n));
+			}
+			prevOk = ok;
+			ppx = TMP[0];
+			ppy = TMP[1];
+		}
+	}
+
+	private static void drawCompass(GuiGraphics g, Minecraft mc) {
+		Font f = mc.font;
+		int cx = g.guiWidth() / 2;
+		int y = 32;
+		int half = 90;
+		int accent = Theme.accent();
+		double heading = (((mc.player.getYRot() + 180.0) % 360.0) + 360.0) % 360.0;
+		String[] names = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+		Gfx.round(g, cx - half - 8, y, cx + half + 8, y + 16, 3, 0x90080810);
+		for (int i = 0; i < 24; i++) {
+			double d = ((i * 15 - heading + 540.0) % 360.0) - 180.0;
+			double dx = d * 1.5;
+			if (Math.abs(dx) > half) {
+				continue;
+			}
+			double k = 1.0 - Math.abs(dx) / half;
+			int x = cx + (int) dx;
+			if (i % 3 == 0) {
+				String s = names[i / 3];
+				int col = i % 6 == 0 ? accent : WHITE;
+				g.drawString(f, s, x - f.width(s) / 2, y + 4, Theme.alpha(col, 0.3 + 0.7 * k), false);
+			} else {
+				g.fill(x, y + 6, x + 1, y + 10, Theme.alpha(Theme.MUTED, k));
+			}
+		}
+		g.fill(cx - 1, y + 13, cx + 2, y + 16, accent);
+		String deg = (int) heading + "\u00B0";
+		g.drawString(f, deg, cx - f.width(deg) / 2, y + 19, Theme.MUTED, false);
+	}
+
+	private static void drawEffects(GuiGraphics g, Minecraft mc) {
+		Font f = mc.font;
+		int y = 80;
+		for (MobEffectInstance e : mc.player.getActiveEffects()) {
+			String name = e.getEffect().value().getDisplayName().getString();
+			if (e.getAmplifier() > 0) {
+				name += " " + (e.getAmplifier() + 1);
+			}
+			int secs = e.getDuration() / 20;
+			String time = e.isInfiniteDuration() ? "--" : String.format("%d:%02d", secs / 60, secs % 60);
+			int w = f.width(name) + f.width(time) + 16;
+			int c = e.getEffect().value().isBeneficial() ? 0xFF45E36B : 0xFFFF3B3B;
+			Gfx.round(g, 4, y, 4 + w, y + 12, 2, 0x90080810);
+			g.fill(4, y + 1, 6, y + 11, c);
+			g.drawString(f, name, 10, y + 2, WHITE, false);
+			g.drawString(f, time, 4 + w - 4 - f.width(time), y + 2, Theme.MUTED, false);
+			y += 13;
 		}
 	}
 

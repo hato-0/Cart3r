@@ -3,6 +3,7 @@ package dev.cart3r.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
@@ -39,6 +40,8 @@ public class MenuScreen extends Screen {
 	private double my;
 	private float alpha = 1f;
 	private String hoverDesc = "";
+	private EditBox search;
+	private String lastSearch = "";
 
 	public MenuScreen() {
 		super(Component.literal("CART3R CLIENT"));
@@ -90,10 +93,28 @@ public class MenuScreen extends Screen {
 		return x >= rx && x < rx + rw && y >= ry && y < ry + rh;
 	}
 
+	private String query() {
+		return search == null ? "" : search.getValue().trim().toLowerCase();
+	}
+
+	@Override
+	protected void init() {
+		search = new EditBox(this.font, px0() + PW - 12 - 30 - 112, 0, 104, 12, Component.literal("Search"));
+		search.setBordered(false);
+		search.setMaxLength(16);
+		search.setHint(Component.literal("Search..."));
+		this.addWidget(search);
+	}
+
+	private int px0() {
+		return (this.width - PW) / 2;
+	}
+
 	private List<Module> mods() {
 		List<Module> out = new ArrayList<>();
+		String q = query();
 		for (Module m : ModuleManager.MODULES) {
-			if (m.getCategory() == selected) {
+			if (!q.isEmpty() ? m.getName().toLowerCase().contains(q) : m.getCategory() == selected) {
 				out.add(m);
 			}
 		}
@@ -204,6 +225,7 @@ public class MenuScreen extends Screen {
 		hoverDesc = "";
 		Gfx.pushScale(g, cx, cy, s);
 		drawFrame(g, f);
+		drawSearch(g, f, mouseX, mouseY, delta);
 		drawTabs(g, f, lClick);
 		drawList(g, f, mc, lClick, rClick);
 		drawPane(g, f, mc, lClick, rClick, l);
@@ -222,6 +244,27 @@ public class MenuScreen extends Screen {
 		}
 	}
 
+	private void drawSearch(GuiGraphics g, Font f, int mouseX, int mouseY, float delta) {
+		int accent = Theme.accent();
+		int sx = px + PW - 12 - 30 - 112;
+		boolean focus = search.isFocused();
+		Gfx.round(g, sx, py + 5, sx + 112, py + 20, 3, a(focus ? Theme.dim(accent, 0.5) : 0xFF181821, 1));
+		search.setX(sx + 6);
+		search.setY(py + 9);
+		search.render(g, mouseX, mouseY, delta);
+		String q = query();
+		if (!q.equals(lastSearch)) {
+			lastSearch = q;
+			scroll = 0f;
+			scrollAnim = 0f;
+			catStart = System.currentTimeMillis();
+			List<Module> l = mods();
+			if (!l.isEmpty() && (picked == null || !l.contains(picked))) {
+				picked = l.get(0);
+			}
+		}
+	}
+
 	private void drawFrame(GuiGraphics g, Font f) {
 		int accent = Theme.accent();
 		if (Theme.GLOW.bool()) {
@@ -230,7 +273,7 @@ public class MenuScreen extends Screen {
 		Gfx.card(g, px, py, px + PW, py + ph, 5, a(Theme.dim(accent, 0.55), 1), a(Theme.PANEL, Theme.OPACITY.num()));
 		g.drawString(f, "CART3R", px + 12, py + 9, a(accent, 1), false);
 		g.drawString(f, "CLIENT", px + 12 + f.width("CART3R") + 5, py + 9, a(Theme.MUTED, 1), false);
-		String ver = "v3.0";
+		String ver = "v8.0";
 		g.drawString(f, ver, px + PW - 12 - f.width(ver), py + 9, a(Theme.MUTED, 1), false);
 		g.fill(px + 10, py + 27, px + PW - 10, py + 28, a(Theme.LINE, 1));
 	}

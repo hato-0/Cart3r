@@ -126,6 +126,7 @@ public class Cart3rClient implements ClientModInitializer {
 			}
 			if (!joined) {
 				joined = true;
+				Notify.push("CART3R v8 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
 				ModuleManager.onJoin(mc);
 			}
 
