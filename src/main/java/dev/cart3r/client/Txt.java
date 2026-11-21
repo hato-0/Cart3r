@@ -40,12 +40,13 @@ public final class Txt {
 		return c;
 	}
 
-	public static int draw(GuiGraphics g, Font f, String s, int x, int y, int color, boolean shadow) {
+	public static void draw(GuiGraphics g, Font f, String s, int x, int y, int color, boolean shadow) {
 		boolean sh = shadow || Theme.TEXT_SHADOW.bool();
 		if (plain()) {
-			return g.drawString(f, s, x, y, color, sh);
+			g.drawString(f, s, x, y, color, sh);
+			return;
 		}
-		return g.drawString(f, comp(s), x, y, color, sh);
+		g.drawString(f, comp(s), x, y, color, sh);
 	}
 
 	public static int width(Font f, String s) {
