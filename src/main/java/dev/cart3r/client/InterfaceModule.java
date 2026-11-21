@@ -17,6 +17,7 @@ public final class InterfaceModule extends Module {
 		add(Theme.GLOW);
 		add(Theme.NOTIFY);
 		add(Theme.HUD_OPACITY);
+		add(Theme.HUD_STYLE);
 		add(Theme.MENU_SCALE);
 		setKey(GLFW.GLFW_KEY_RIGHT_SHIFT);
 		setEnabled(true);

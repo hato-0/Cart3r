@@ -7,7 +7,11 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import org.lwjgl.glfw.GLFW;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -107,7 +111,7 @@ public final class Hud {
 
 		boolean ent = ModuleManager.ESP.isEnabled() || ModuleManager.TRACERS.isEnabled()
 			|| ModuleManager.NAMETAGS.isEnabled() || ModuleManager.HITBOXES.isEnabled()
-			|| ModuleManager.RADAR.isEnabled();
+			|| ModuleManager.RADAR.isEnabled() || ModuleManager.ITEMLAB.isEnabled();
 		if (ent) {
 			if (t % 2 == 0) {
 				refreshTargets(mc);
@@ -205,6 +209,22 @@ public final class Hud {
 			seen.clear();
 		}
 
+		if (ModuleManager.HITP.isEnabled()) {
+			hitParticles(mc);
+		} else if (!HURT.isEmpty()) {
+			HURT.clear();
+		}
+
+		if (ModuleManager.HUD.isEnabled() && ModuleManager.HUD.getBool("Mobs") && t % 20 == 0) {
+			int n = 0;
+			for (Entity e : mc.level.entitiesForRendering()) {
+				if (e instanceof Enemy && e.distanceToSqr(mc.player) < 1024.0) {
+					n++;
+				}
+			}
+			mobCount = n;
+		}
+
 		if (ModuleManager.COUNTERS.isEnabled() && t % 10 == 0) {
 			countItems(mc);
 		}
@@ -231,6 +251,9 @@ public final class Hud {
 		}
 		if (ModuleManager.RADAR.isEnabled()) {
 			max = Math.max(max, ModuleManager.RADAR.getNum("Range"));
+		}
+		if (ModuleManager.ITEMLAB.isEnabled()) {
+			max = Math.max(max, ModuleManager.ITEMLAB.getNum("Range"));
 		}
 		double r2 = max * max;
 		boolean others = ModuleManager.HITBOXES.isEnabled() && ModuleManager.HITBOXES.getBool("Others");
@@ -434,7 +457,7 @@ public final class Hud {
 			|| ModuleManager.ORES.isEnabled() || ModuleManager.WAYPOINTS.isEnabled()
 			|| ModuleManager.BREAD.isEnabled() || ModuleManager.BLOCKOV.isEnabled()
 			|| ModuleManager.JUMPC.isEnabled() || ModuleManager.TARGET.isEnabled()
-			|| ModuleManager.CHUNKS.isEnabled();
+			|| ModuleManager.CHUNKS.isEnabled() || ModuleManager.ITEMLAB.isEnabled();
 		if (needs && Projector.begin(mc, g, pt)) {
 			if (ModuleManager.STORAGE.isEnabled()) {
 				drawStorage(g, mc);
@@ -450,6 +473,9 @@ public final class Hud {
 			}
 			if (ModuleManager.CHUNKS.isEnabled()) {
 				drawChunks(g, mc);
+			}
+			if (ModuleManager.ITEMLAB.isEnabled()) {
+				drawItemLabels(g, mc, pt);
 			}
 			if (ModuleManager.JUMPC.isEnabled()) {
 				drawJumpCircles(g);
@@ -1005,6 +1031,16 @@ public final class Hud {
 			String dn = mc.player.getDirection().getName();
 			lines.add(Character.toUpperCase(dn.charAt(0)) + dn.substring(1));
 		}
+		if (hud.getBool("Biome")) {
+			lines.add(biomeName(mc));
+		}
+		if (hud.getBool("Mobs")) {
+			lines.add("Mobs " + mobCount);
+		}
+		if (ModuleManager.STOPW.isEnabled()) {
+			long sec = (System.currentTimeMillis() - stopStart) / 1000L;
+			lines.add(String.format("%d:%02d:%02d", sec / 3600, (sec / 60) % 60, sec % 60));
+		}
 		if (hud.getBool("Speed")) {
 			lines.add(String.format("%.1f b/s", speedVal));
 		}
@@ -1025,7 +1061,7 @@ public final class Hud {
 		int h = 12 + lines.size() * 11;
 		HudLayout.report(HudLayout.INFO, 4, 4, 4 + w + 12, 4 + h);
 		HudLayout.begin(g, HudLayout.INFO);
-		Gfx.round(g, 4, 4, 4 + w + 12, 4 + h, 3, Theme.hudBg());
+		hudCard(g, 4, 4, 4 + w + 12, 4 + h, 3);
 		g.fill(4, 7, 6, 4 + h - 3, accent);
 		Txt.draw(g, f, "HATO", 11, 7, accent, false);
 		if (!prof.isEmpty()) {
@@ -1155,6 +1191,13 @@ public final class Hud {
 	}
 
 	private static final double[] TMP2 = new double[2];
+	public static long stopStart = System.currentTimeMillis();
+	private static int mobCount;
+	private static final java.util.HashMap<Integer, Integer> HURT = new java.util.HashMap<>();
+	private static final SimpleParticleType[] PTYPES = {
+		ParticleTypes.CRIT, ParticleTypes.ENCHANTED_HIT, ParticleTypes.HEART, ParticleTypes.FLAME,
+		ParticleTypes.SOUL_FIRE_FLAME, ParticleTypes.END_ROD, ParticleTypes.TOTEM_OF_UNDYING
+	};
 	private static final float[] FT = new float[90];
 	private static int ftI;
 	private static final int[] COUNTS = new int[5];
@@ -1207,6 +1250,99 @@ public final class Hud {
 		int band = (int) (h * 0.32);
 		g.fillGradient(0, 0, w, band, c, 0x00000000);
 		g.fillGradient(0, h - band, w, h, 0x00000000, c);
+	}
+
+	private static void hudCard(GuiGraphics g, int x1, int y1, int x2, int y2, int r) {
+		int st = (int) Theme.HUD_STYLE.num();
+		if (st == 2) {
+			Gfx.card(g, x1, y1, x2, y2, r, Theme.alpha(Theme.accent(), 0.85), Theme.hudBg());
+			return;
+		}
+		Gfx.round(g, x1, y1, x2, y2, r, Theme.hudBg());
+		if (st == 1) {
+			g.fillGradient(x1 + 1, y1 + 1, x2 - 1, y2 - 1, Theme.alpha(Theme.accent(), 0.28), 0x00000000);
+		}
+	}
+
+	private static String biomeName(Minecraft mc) {
+		String s = mc.level.getBiome(mc.player.blockPosition()).unwrapKey().map(Object::toString).orElse("?");
+		int i = s.lastIndexOf(" / ");
+		if (i >= 0 && s.endsWith("]")) {
+			s = s.substring(i + 3, s.length() - 1);
+		}
+		int c = s.indexOf(':');
+		if (c >= 0) {
+			s = s.substring(c + 1);
+		}
+		StringBuilder sb = new StringBuilder();
+		boolean up = true;
+		for (char ch : s.toCharArray()) {
+			if (ch == '_') {
+				sb.append(' ');
+				up = true;
+			} else {
+				sb.append(up ? Character.toUpperCase(ch) : ch);
+				up = false;
+			}
+		}
+		return sb.toString();
+	}
+
+	private static void hitParticles(Minecraft mc) {
+		Module m = ModuleManager.HITP;
+		int type = Math.max(0, Math.min(PTYPES.length - 1, (int) m.getNum("Type")));
+		int amount = (int) m.getNum("Amount");
+		double r2 = sq(m.getNum("Range"));
+		var rnd = mc.level.getRandom();
+		for (Entity e : mc.level.entitiesForRendering()) {
+			if (!(e instanceof LivingEntity le) || e == mc.player || e.distanceToSqr(mc.player) > r2) {
+				continue;
+			}
+			int prev = HURT.getOrDefault(le.getId(), 0);
+			int now = le.hurtTime;
+			if (now > prev) {
+				for (int i = 0; i < amount; i++) {
+					mc.level.addParticle(PTYPES[type],
+						le.getX() + rnd.nextGaussian() * le.getBbWidth() * 0.3,
+						le.getY() + rnd.nextDouble() * le.getBbHeight(),
+						le.getZ() + rnd.nextGaussian() * le.getBbWidth() * 0.3,
+						rnd.nextGaussian() * 0.08, 0.05 + rnd.nextDouble() * 0.1, rnd.nextGaussian() * 0.08);
+				}
+			}
+			HURT.put(le.getId(), now);
+		}
+		if (HURT.size() > 300) {
+			HURT.clear();
+		}
+	}
+
+	private static void drawItemLabels(GuiGraphics g, Minecraft mc, float pt) {
+		Module m = ModuleManager.ITEMLAB;
+		double r2 = sq(m.getNum("Range"));
+		boolean cnt = m.getBool("Count");
+		int shown = 0;
+		for (Tgt t : targets) {
+			if (!(t.e instanceof ItemEntity ie) || ie.isRemoved()) {
+				continue;
+			}
+			if (ie.distanceToSqr(Projector.eye) > r2) {
+				continue;
+			}
+			Vec3 p = ie.getPosition(pt);
+			if (!Projector.project(p.x, p.y + 0.6, p.z, TMP)) {
+				continue;
+			}
+			ItemStack st = ie.getItem();
+			String s = st.getHoverName().getString() + (cnt && st.getCount() > 1 ? " x" + st.getCount() : "");
+			int w = Txt.width(mc.font, s);
+			int x = (int) TMP[0] - w / 2;
+			int y = (int) TMP[1] - 6;
+			Gfx.round(g, x - 3, y - 2, x + w + 3, y + 10, 3, 0xB0000000);
+			Txt.draw(g, mc.font, s, x, y, WHITE, false);
+			if (++shown >= 25) {
+				break;
+			}
+		}
 	}
 
 	private static void countItems(Minecraft mc) {
@@ -1385,15 +1521,39 @@ public final class Hud {
 	private static void crossShape(GuiGraphics g, int cx, int cy, int style, int size, int gap, int th, int color) {
 		int lo = cy - th / 2;
 		int lx = cx - th / 2;
-		if (style == 0 || style == 3) {
+		if (style == 0 || style == 3 || style == 7) {
 			g.fill(cx - gap - size, lo, cx - gap, lo + th, color);
 			g.fill(cx + gap, lo, cx + gap + size, lo + th, color);
-			g.fill(lx, cy - gap - size, lx + th, cy - gap, color);
+			if (style != 7) {
+				g.fill(lx, cy - gap - size, lx + th, cy - gap, color);
+			}
 			g.fill(lx, cy + gap, lx + th, cy + gap + size, color);
 		}
 		if (style == 1 || style == 3) {
 			int d = Math.max(1, th);
 			g.fill(cx - d / 2, cy - d / 2, cx - d / 2 + d + 1, cy - d / 2 + d + 1, color);
+		}
+		if (style == 4) {
+			int r = gap + size;
+			g.fill(cx - r, cy - r, cx + r + 1, cy - r + th, color);
+			g.fill(cx - r, cy + r + 1 - th, cx + r + 1, cy + r + 1, color);
+			g.fill(cx - r, cy - r, cx - r + th, cy + r + 1, color);
+			g.fill(cx + r + 1 - th, cy - r, cx + r + 1, cy + r + 1, color);
+		}
+		if (style == 5) {
+			int r = gap + size;
+			for (int i = -r; i <= r; i++) {
+				int d = r - Math.abs(i);
+				g.fill(cx + i, cy - d, cx + i + th, cy - d + th, color);
+				g.fill(cx + i, cy + d, cx + i + th, cy + d + th, color);
+			}
+		}
+		if (style == 6) {
+			int r = gap + size;
+			for (int i = 0; i <= r; i++) {
+				g.fill(cx - i, cy - r + i, cx - i + th, cy - r + i + th, color);
+				g.fill(cx + i, cy - r + i, cx + i + th, cy - r + i + th, color);
+			}
 		}
 		if (style == 2) {
 			int r = gap + size;

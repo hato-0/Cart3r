@@ -27,6 +27,14 @@ public final class HudLayout {
 	private static final int[][] OFF = new int[N][2];
 	private static final int[][] RECT = new int[N][4];
 	private static final long[] SEEN = new long[N];
+	private static final float[] SCALE = new float[N];
+	private static final float[][] ORG = new float[N][2];
+
+	static {
+		for (int i = 0; i < N; i++) {
+			SCALE[i] = 1f;
+		}
+	}
 	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("hato-hud.txt");
 
 	private HudLayout() {
@@ -36,6 +44,11 @@ public final class HudLayout {
 		var p = g.pose();
 		p.pushMatrix();
 		p.translate((float) OFF[id][0], (float) OFF[id][1]);
+		if (SCALE[id] != 1f) {
+			p.translate(ORG[id][0], ORG[id][1]);
+			p.scale(SCALE[id], SCALE[id]);
+			p.translate(-ORG[id][0], -ORG[id][1]);
+		}
 	}
 
 	public static void end(GuiGraphics g) {
@@ -43,10 +56,15 @@ public final class HudLayout {
 	}
 
 	public static void report(int id, int x1, int y1, int x2, int y2) {
-		RECT[id][0] = x1 + OFF[id][0];
-		RECT[id][1] = y1 + OFF[id][1];
-		RECT[id][2] = x2 + OFF[id][0];
-		RECT[id][3] = y2 + OFF[id][1];
+		float s = SCALE[id];
+		float cx = (x1 + x2) / 2f;
+		float cy = (y1 + y2) / 2f;
+		ORG[id][0] = cx;
+		ORG[id][1] = cy;
+		RECT[id][0] = Math.round(cx + (x1 - cx) * s) + OFF[id][0];
+		RECT[id][1] = Math.round(cy + (y1 - cy) * s) + OFF[id][1];
+		RECT[id][2] = Math.round(cx + (x2 - cx) * s) + OFF[id][0];
+		RECT[id][3] = Math.round(cy + (y2 - cy) * s) + OFF[id][1];
 		SEEN[id] = System.currentTimeMillis();
 	}
 
@@ -80,8 +98,25 @@ public final class HudLayout {
 		r[3] += dy;
 	}
 
+	public static int offX(int id) {
+		return OFF[id][0];
+	}
+
+	public static int offY(int id) {
+		return OFF[id][1];
+	}
+
+	public static float scale(int id) {
+		return SCALE[id];
+	}
+
+	public static void addScale(int id, float d) {
+		SCALE[id] = Math.max(0.5f, Math.min(2.0f, Math.round((SCALE[id] + d) * 20f) / 20f));
+	}
+
 	public static void reset() {
 		for (int i = 0; i < N; i++) {
+			SCALE[i] = 1f;
 			OFF[i][0] = 0;
 			OFF[i][1] = 0;
 		}
@@ -102,6 +137,9 @@ public final class HudLayout {
 					if (NAMES[i].equals(p[0])) {
 						OFF[i][0] = Integer.parseInt(p[1].trim());
 						OFF[i][1] = Integer.parseInt(p[2].trim());
+						if (p.length > 3) {
+							SCALE[i] = Math.max(0.5f, Math.min(2.0f, Float.parseFloat(p[3].trim())));
+						}
 					}
 				}
 			}
@@ -112,7 +150,7 @@ public final class HudLayout {
 	public static void save() {
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < N; i++) {
-			sb.append(NAMES[i]).append('\t').append(OFF[i][0]).append('\t').append(OFF[i][1]).append('\n');
+			sb.append(NAMES[i]).append('\t').append(OFF[i][0]).append('\t').append(OFF[i][1]).append('\t').append(SCALE[i]).append('\n');
 		}
 		try {
 			Files.writeString(FILE, sb.toString());

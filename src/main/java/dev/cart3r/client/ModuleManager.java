@@ -424,7 +424,7 @@ public final class ModuleManager {
 			private final Setting vstrength = num("Vignette strength", 0.1, 0.8, 0.4, 0.1);
 		},
 		new Module("Crosshair+", Category.HUD, "Custom crosshair that replaces the vanilla one") {
-			private final Setting style = options("Style", 0, "Cross", "Dot", "Circle", "Plus");
+			private final Setting style = options("Style", 0, "Cross", "Dot", "Circle", "Plus", "Square", "Diamond", "Chevron", "T-Cross");
 			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
 			private final Setting size = num("Size", 2, 12, 5, 1);
 			private final Setting gap = num("Gap", 0, 8, 3, 1);
@@ -463,6 +463,21 @@ public final class ModuleManager {
 						Notify.push("Low durability: " + s.getHoverName().getString() + " (" + left + "%)", 0xFFFFD33D);
 					}
 				}
+			}
+		},
+		new Module("HitParticles", Category.VISUAL, "Extra particles when a creature gets hurt") {
+			private final Setting type = options("Type", 0, "Crit", "Enchant", "Heart", "Flame", "Soul", "Star", "Totem");
+			private final Setting amount = num("Amount", 3, 30, 10, 1);
+			private final Setting range = num("Range", 8, 48, 24, 4);
+		},
+		new Module("ItemLabels", Category.RENDER, "Show names and counts above dropped items") {
+			private final Setting range = num("Range", 8, 48, 24, 4);
+			private final Setting count = toggle("Count", true);
+		},
+		new Module("Stopwatch", Category.HUD, "Timer on the HUD, starts when you turn it on") {
+			@Override
+			public void onEnable(Minecraft mc) {
+				Hud.stopStart = System.currentTimeMillis();
 			}
 		},
 		new Module("FOV", Category.VISUAL, "Change your field of view") {
@@ -940,6 +955,8 @@ public final class ModuleManager {
 			private final Setting speed = toggle("Speed", false);
 			private final Setting light = toggle("Light", false);
 			private final Setting facing = toggle("Facing", false);
+			private final Setting biome = toggle("Biome", false);
+			private final Setting mobs = toggle("Mobs", false);
 		},
 		new Module("Spotify", Category.HUD, "Now playing overlay (Windows desktop app)") {
 		},
@@ -1016,6 +1033,9 @@ public final class ModuleManager {
 	public static final Module COUNTERS = get("Counters");
 	public static final Module FRAMES = get("FrameGraph");
 	public static final Module STREAMER = get("StreamerMode");
+	public static final Module HITP = get("HitParticles");
+	public static final Module ITEMLAB = get("ItemLabels");
+	public static final Module STOPW = get("Stopwatch");
 
 	private ModuleManager() {
 	}

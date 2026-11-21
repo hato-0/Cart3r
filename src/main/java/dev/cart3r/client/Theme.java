@@ -1,7 +1,7 @@
 package dev.cart3r.client;
 
 public final class Theme {
-	public static final Setting ACCENT = Setting.options("Accent", 0, "Crimson", "Blue", "Green", "Purple", "Orange", "Cyan", "Pink", "Rainbow");
+	public static final Setting ACCENT = Setting.options("Accent", 0, "Crimson", "Blue", "Green", "Purple", "Orange", "Cyan", "Pink", "Rainbow", "Gold", "Ice", "Lime");
 	public static final Setting ANIMATIONS = Setting.toggle("Animations", true);
 	public static final Setting ANIM_MS = Setting.number("Anim ms", 100, 600, 250, 50);
 	public static final Setting OPACITY = Setting.number("Panel opacity", 0.5, 1.0, 0.94, 0.02);
@@ -13,6 +13,7 @@ public final class Theme {
 	public static final Setting FONT_STYLE = Setting.options("Font style", 0, "Normal", "Bold", "Italic", "Bold Italic", "Underline");
 	public static final Setting FONT_CASE = Setting.options("Text case", 0, "Normal", "UPPER", "lower");
 	public static final Setting TEXT_SHADOW = Setting.toggle("Text shadow", false);
+	public static final Setting HUD_STYLE = Setting.options("HUD style", 0, "Solid", "Gradient", "Outline");
 	public static final Setting NOTIFY = Setting.toggle("Notifications", true);
 
 	public static final int TEXT = 0xFFEDEDF2;
@@ -22,7 +23,7 @@ public final class Theme {
 	public static final int PANEL = 0xFF0A0A0F;
 	public static final int LINE = 0xFF22222C;
 
-	private static final int[] COLORS = {0xFFFF1F3D, 0xFF3D8BFF, 0xFF2DD36F, 0xFFA855F7, 0xFFFF9F1C, 0xFF22D3EE, 0xFFFF4FA3, 0xFFFFFFFF};
+	private static final int[] COLORS = {0xFFFF1F3D, 0xFF3D8BFF, 0xFF2DD36F, 0xFFA855F7, 0xFFFF9F1C, 0xFF22D3EE, 0xFFFF4FA3, 0xFFFFFFFF, 0xFFFFC53D, 0xFF9BE7FF, 0xFFB5F23D};
 	private static long start = 0;
 	private static long last = System.nanoTime();
 	private static float dt = 0.016f;
@@ -44,7 +45,7 @@ public final class Theme {
 
 	public static int colorOf(int index) {
 		int i = Math.max(0, Math.min(COLORS.length - 1, index));
-		return i == COLORS.length - 1 ? rainbow() : COLORS[i];
+		return i == 7 ? rainbow() : COLORS[i];
 	}
 
 	public static int accent() {

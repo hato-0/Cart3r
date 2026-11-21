@@ -165,6 +165,7 @@ public class Cart3rClient implements ClientModInitializer {
 
 			ModuleManager.tick(mc);
 			Hud.tick(mc);
+			Profiles.tick(mc);
 		});
 	}
 }

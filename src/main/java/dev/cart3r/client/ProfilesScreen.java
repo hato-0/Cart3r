@@ -23,6 +23,7 @@ public class ProfilesScreen extends Screen {
 	private int py;
 	private int ph;
 	private float alpha = 1f;
+	private String listening = null;
 
 	public ProfilesScreen() {
 		super(Component.literal("Profiles"));
@@ -101,6 +102,17 @@ public class ProfilesScreen extends Screen {
 			}
 		}
 
+		if (listening != null) {
+			for (int k = 32; k <= 348; k++) {
+				if (k == GLFW.GLFW_KEY_ESCAPE || !Input.key(k)) {
+					continue;
+				}
+				Profiles.setKey(listening, k == GLFW.GLFW_KEY_BACKSPACE ? 0 : k);
+				listening = null;
+				break;
+			}
+		}
+
 		int listTop = top + 62;
 		int listBottom = top + ph - 30;
 		List<Profiles.Profile> list = new ArrayList<>(Profiles.LIST);
@@ -119,15 +131,33 @@ public class ProfilesScreen extends Screen {
 				Gfx.round(g, px + 10, y + 3, px + 13, y + ROW - 6, 1, a(on ? pc : Theme.LINE, 1));
 				Gfx.circle(g, px + 25, y + 10, 4, a(pc, 1));
 				Txt.draw(g, f, p.name(), px + 36, y + 3, a(Theme.TEXT, 1), false);
-				String info = p.mods().size() + " cheats";
+				String info = p.mods().size() + " cheats  +  settings";
 				Txt.draw(g, f, info, px + 36, y + 13, a(Theme.MUTED, 1), false);
 
 				int dx = px + PW - 10 - 20;
-				int lx = dx - 6 - 48;
-				boolean hl = inside(mouseX, mouseY, lx, y + 3, 48, 16) && mouseY >= listTop && mouseY < listBottom;
-				boolean hd = inside(mouseX, mouseY, dx, y + 3, 16, 16) && mouseY >= listTop && mouseY < listBottom;
-				Gfx.round(g, lx, y + 3, lx + 48, y + 19, 3, a(hl ? Theme.dim(pc, 0.7) : Theme.dim(pc, 0.4), 1));
-				Txt.draw(g, f, on ? "Active" : "Load", lx + (48 - Txt.width(f, on ? "Active" : "Load")) / 2, y + 7, a(Theme.TEXT, 1), false);
+				int cpx = dx - 40;
+				int kx = cpx - 60;
+				int lx = kx - 48;
+				boolean inList = mouseY >= listTop && mouseY < listBottom;
+				boolean hl = inside(mouseX, mouseY, lx, y + 3, 44, 16) && inList;
+				boolean hk = inside(mouseX, mouseY, kx, y + 3, 56, 16) && inList;
+				boolean hc = inside(mouseX, mouseY, cpx, y + 3, 36, 16) && inList;
+				boolean hd = inside(mouseX, mouseY, dx, y + 3, 16, 16) && inList;
+				boolean listen = p.name().equals(listening);
+				Gfx.round(g, lx, y + 3, lx + 44, y + 19, 3, a(hl ? Theme.dim(pc, 0.7) : Theme.dim(pc, 0.4), 1));
+				Txt.draw(g, f, on ? "Active" : "Load", lx + (44 - Txt.width(f, on ? "Active" : "Load")) / 2, y + 7, a(Theme.TEXT, 1), false);
+				Gfx.round(g, kx, y + 3, kx + 56, y + 19, 3, a(listen ? Theme.dim(accent, 0.7) : (hk ? 0xFF2E2E3A : 0xFF20202A), 1));
+				String ks = listen ? "press key" : (p.key() > 0 ? Module.keyName(p.key()) : "Key");
+				Txt.draw(g, f, ks, kx + (56 - Txt.width(f, ks)) / 2, y + 7, a(Theme.TEXT, 1), false);
+				Gfx.round(g, cpx, y + 3, cpx + 36, y + 19, 3, a(hc ? 0xFF2E2E3A : 0xFF20202A, 1));
+				Txt.draw(g, f, "Copy", cpx + (36 - Txt.width(f, "Copy")) / 2, y + 7, a(Theme.TEXT, 1), false);
+				if (click && hc) {
+					mc.keyboardHandler.setClipboard(Profiles.exportCode(p));
+					Notify.push("Profile code copied", accent);
+				}
+				if (click && hk) {
+					listening = listen ? null : p.name();
+				}
 				Gfx.round(g, dx, y + 3, dx + 16, y + 19, 3, a(hd ? 0xFFB02A3A : 0xFF2A1A1F, 1));
 				Txt.draw(g, f, "x", dx + 6, y + 7, a(Theme.TEXT, 1), false);
 				if (click && hl) {
@@ -149,7 +179,14 @@ public class ProfilesScreen extends Screen {
 		boolean hb = inside(mouseX, mouseY, px + 10, by, 60, 16);
 		Gfx.round(g, px + 10, by, px + 70, by + 16, 3, a(hb ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
 		Txt.draw(g, f, "Back", px + 10 + (60 - Txt.width(f, "Back")) / 2, by + 4, a(Theme.TEXT, 1), false);
-		String hint = "Saves your active cheats and the client color";
+		boolean hi = inside(mouseX, mouseY, px + 76, by, 60, 16);
+		Gfx.round(g, px + 76, by, px + 136, by + 16, 3, a(hi ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
+		Txt.draw(g, f, "Import", px + 76 + (60 - Txt.width(f, "Import")) / 2, by + 4, a(Theme.TEXT, 1), false);
+		if (hi && click) {
+			Profiles.Profile ip = Profiles.importCode(mc.keyboardHandler.getClipboard());
+			Notify.push(ip != null ? "Imported: " + ip.name() : "No profile code in clipboard", ip != null ? accent : 0xFFFF3B3B);
+		}
+		String hint = "Copy = share code   Import = paste code";
 		Txt.draw(g, f, hint, px + PW - 10 - Txt.width(f, hint), by + 4, a(Theme.MUTED, 1), false);
 
 		if (toLoad != null) {
