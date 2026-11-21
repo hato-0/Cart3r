@@ -12,6 +12,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -202,6 +203,10 @@ public final class Hud {
 			}
 		} else if (!seen.isEmpty()) {
 			seen.clear();
+		}
+
+		if (ModuleManager.COUNTERS.isEnabled() && t % 10 == 0) {
+			countItems(mc);
 		}
 
 		if (ModuleManager.SPOTIFY.isEnabled()) {
@@ -413,15 +418,23 @@ public final class Hud {
 		if (mc.player == null || mc.level == null || mc.options.hideGui) {
 			return;
 		}
+		if (ModuleManager.FRAMES.isEnabled()) {
+			FT[ftI] = Theme.dt() * 1000f;
+			ftI = (ftI + 1) % FT.length;
+		}
 		if (ModuleManager.GRADE.isEnabled()) {
 			drawGrade(g);
+		}
+		if (ModuleManager.LOWHP.isEnabled()) {
+			drawLowHealth(g, mc);
 		}
 		boolean needs = ModuleManager.ESP.isEnabled() || ModuleManager.TRACERS.isEnabled()
 			|| ModuleManager.NAMETAGS.isEnabled() || ModuleManager.LIGHT.isEnabled()
 			|| ModuleManager.STORAGE.isEnabled() || ModuleManager.HITBOXES.isEnabled()
 			|| ModuleManager.ORES.isEnabled() || ModuleManager.WAYPOINTS.isEnabled()
 			|| ModuleManager.BREAD.isEnabled() || ModuleManager.BLOCKOV.isEnabled()
-			|| ModuleManager.JUMPC.isEnabled() || ModuleManager.TARGET.isEnabled();
+			|| ModuleManager.JUMPC.isEnabled() || ModuleManager.TARGET.isEnabled()
+			|| ModuleManager.CHUNKS.isEnabled();
 		if (needs && Projector.begin(mc, g, pt)) {
 			if (ModuleManager.STORAGE.isEnabled()) {
 				drawStorage(g, mc);
@@ -434,6 +447,9 @@ public final class Hud {
 			}
 			if (ModuleManager.BLOCKOV.isEnabled()) {
 				drawBlockOverlay(g, mc);
+			}
+			if (ModuleManager.CHUNKS.isEnabled()) {
+				drawChunks(g, mc);
 			}
 			if (ModuleManager.JUMPC.isEnabled()) {
 				drawJumpCircles(g);
@@ -461,28 +477,50 @@ public final class Hud {
 			}
 		}
 		if (ModuleManager.RADAR.isEnabled()) {
+			HudLayout.begin(g, HudLayout.RADAR);
 			drawRadar(g, mc, pt);
+			HudLayout.end(g);
 		}
 		if (ModuleManager.ARMOR.isEnabled()) {
+			HudLayout.begin(g, HudLayout.ARMOR);
 			drawArmor(g, mc);
+			HudLayout.end(g);
 		}
 		if (ModuleManager.HUD.isEnabled()) {
 			drawInfo(g, mc);
 		}
 		if (ModuleManager.SPOTIFY.isEnabled()) {
+			HudLayout.begin(g, HudLayout.SPOTIFY);
 			drawSpotify(g, mc);
+			HudLayout.end(g);
 		}
 		if (ModuleManager.CROSS.isEnabled()) {
 			drawCrosshair(g, mc);
 		}
 		if (ModuleManager.KEYSTROKES.isEnabled()) {
+			HudLayout.begin(g, HudLayout.KEYS);
 			drawKeys(g, mc);
+			HudLayout.end(g);
 		}
 		if (ModuleManager.COMPASS.isEnabled()) {
+			HudLayout.begin(g, HudLayout.COMPASS);
 			drawCompass(g, mc);
+			HudLayout.end(g);
+		}
+		if (ModuleManager.COUNTERS.isEnabled()) {
+			HudLayout.begin(g, HudLayout.COUNTERS);
+			drawCounters(g, mc);
+			HudLayout.end(g);
+		}
+		if (ModuleManager.FRAMES.isEnabled()) {
+			HudLayout.begin(g, HudLayout.FRAME);
+			drawFrameGraph(g, mc);
+			HudLayout.end(g);
 		}
 		if (ModuleManager.EFFECTS.isEnabled()) {
+			HudLayout.begin(g, HudLayout.EFFECTS);
 			drawEffects(g, mc);
+			HudLayout.end(g);
 		}
 		Notify.draw(g, mc.font);
 	}
@@ -530,7 +568,7 @@ public final class Hud {
 				outline(g, x1 - 1, y1 - 1, x2 + 1, y2 + 1, SHADOW);
 				outline(g, x1, y1, x2, y2, s.color());
 				if (labels) {
-					g.drawString(f, s.label(), x1, y1 - 10, s.color(), true);
+					Txt.draw(g, f, s.label(), x1, y1 - 10, s.color(), true);
 				}
 			} else {
 				if (!Projector.project(s.x() + 0.5, s.y() + 0.5, s.z() + 0.5, TMP)) {
@@ -619,9 +657,9 @@ public final class Hud {
 				double dz = p.z() - Projector.eye.z;
 				label += " " + (int) Math.sqrt(dx * dx + dy * dy + dz * dz) + "m";
 			}
-			int w = f.width(label);
+			int w = Txt.width(f, label);
 			Gfx.round(g, x - w / 2 - 3, y - 18, x + w / 2 + 3, y - 7, 2, 0xA0000000);
-			g.drawString(f, label, x - w / 2, y - 16, WHITE, false);
+			Txt.draw(g, f, label, x - w / 2, y - 16, WHITE, false);
 		}
 	}
 
@@ -792,7 +830,7 @@ public final class Hud {
 			}
 			if (names) {
 				String label = e.getName().getString() + " " + (int) Math.sqrt(d2) + "m";
-				g.drawString(mc.font, label, x1, y1 - 10, color, true);
+				Txt.draw(g, mc.font, label, x1, y1 - 10, color, true);
 			}
 			if (++shown >= 80) {
 				break;
@@ -827,12 +865,12 @@ public final class Hud {
 				sb.append("  ").append((int) Math.sqrt(d2)).append("m");
 			}
 			String s = sb.toString();
-			int w = mc.font.width(s);
+			int w = Txt.width(mc.font, s);
 			int x = (int) TMP[0] - w / 2;
 			int y = (int) TMP[1] - 10;
 			Gfx.round(g, x - 4, y - 3, x + w + 4, y + 11, 3, 0xB0000000);
 			g.fill(x - 2, y + 10, x + w + 2, y + 11, t.color);
-			g.drawString(mc.font, s, x, y, WHITE, true);
+			Txt.draw(g, mc.font, s, x, y, WHITE, true);
 			if (++shown >= 60) {
 				break;
 			}
@@ -873,7 +911,7 @@ public final class Hud {
 			int ey = (int) o[1];
 			g.fill(ex - 2, ey - 2, ex + 3, ey + 3, col);
 			if (showDist) {
-				g.drawString(mc.font, (int) dist + "m", ex + 5, ey - 4, col, true);
+				Txt.draw(g, mc.font, (int) dist + "m", ex + 5, ey - 4, col, true);
 			}
 			if (++shown >= 40) {
 				break;
@@ -892,6 +930,7 @@ public final class Hud {
 		double range = m.getNum("Range");
 		int cx = g.guiWidth() - r - 8;
 		int cy = g.guiHeight() - r - 34;
+		HudLayout.report(HudLayout.RADAR, cx - r - 1, cy - r - 1, cx + r + 2, cy + r + 2);
 		int accent = Theme.accent();
 
 		Gfx.circle(g, cx, cy, r + 1, Theme.alpha(accent, 0.8));
@@ -900,13 +939,13 @@ public final class Hud {
 		g.fill(cx, cy - r, cx + 1, cy + r, 0x30FFFFFF);
 
 		Vec3 me = cam.getPosition(pt);
-		double yaw = Math.toRadians(cam.getViewYRot(pt));
+		double yaw = m.getBool("Rotate") ? Math.toRadians(cam.getViewYRot(pt)) : Math.PI;
 		double s = Math.sin(yaw);
 		double c = Math.cos(yaw);
 
 		double nf = -c;
 		double nr = s;
-		g.drawString(mc.font, "N", (int) (cx + nr * r * 0.82) - 2, (int) (cy - nf * r * 0.82) - 4, accent, false);
+		Txt.draw(g, mc.font, "N", (int) (cx + nr * r * 0.82) - 2, (int) (cy - nf * r * 0.82) - 4, accent, false);
 
 		for (Tgt t : targets) {
 			Entity e = t.e;
@@ -934,6 +973,7 @@ public final class Hud {
 		EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
 		int x = g.guiWidth() / 2 + 100;
 		int y = g.guiHeight() - 20;
+		HudLayout.report(HudLayout.ARMOR, x, y, x + 72, y + 16);
 		for (EquipmentSlot slot : slots) {
 			ItemStack s = mc.player.getItemBySlot(slot);
 			if (s.isEmpty()) {
@@ -955,7 +995,15 @@ public final class Hud {
 			lines.add(mc.getFps() + " FPS");
 		}
 		if (hud.getBool("Coords")) {
-			lines.add(String.format("%.1f %.1f %.1f", mc.player.getX(), mc.player.getY(), mc.player.getZ()));
+			lines.add(ModuleManager.STREAMER.isEnabled() ? "Coords hidden"
+				: String.format("%.1f %.1f %.1f", mc.player.getX(), mc.player.getY(), mc.player.getZ()));
+		}
+		if (hud.getBool("Light")) {
+			lines.add("Light " + mc.level.getMaxLocalRawBrightness(mc.player.blockPosition()));
+		}
+		if (hud.getBool("Facing")) {
+			String dn = mc.player.getDirection().getName();
+			lines.add(Character.toUpperCase(dn.charAt(0)) + dn.substring(1));
 		}
 		if (hud.getBool("Speed")) {
 			lines.add(String.format("%.1f b/s", speedVal));
@@ -970,24 +1018,29 @@ public final class Hud {
 			lines.add(java.time.LocalTime.now().format(CLOCK));
 		}
 		String prof = (hud.getBool("Profile") && !Profiles.active.isEmpty()) ? Profiles.active : "";
-		int w = f.width("CART3R") + (prof.isEmpty() ? 0 : f.width(prof) + 6);
+		int w = Txt.width(f, "HATO") + (prof.isEmpty() ? 0 : Txt.width(f, prof) + 6);
 		for (String s : lines) {
-			w = Math.max(w, f.width(s));
+			w = Math.max(w, Txt.width(f, s));
 		}
 		int h = 12 + lines.size() * 11;
+		HudLayout.report(HudLayout.INFO, 4, 4, 4 + w + 12, 4 + h);
+		HudLayout.begin(g, HudLayout.INFO);
 		Gfx.round(g, 4, 4, 4 + w + 12, 4 + h, 3, Theme.hudBg());
 		g.fill(4, 7, 6, 4 + h - 3, accent);
-		g.drawString(f, "CART3R", 11, 7, accent, false);
+		Txt.draw(g, f, "HATO", 11, 7, accent, false);
 		if (!prof.isEmpty()) {
-			g.drawString(f, prof, 11 + f.width("CART3R") + 6, 7, Theme.MUTED, false);
+			Txt.draw(g, f, prof, 11 + Txt.width(f, "HATO") + 6, 7, Theme.MUTED, false);
 		}
 		int y = 18;
 		for (String s : lines) {
-			g.drawString(f, s, 11, y, WHITE, false);
+			Txt.draw(g, f, s, 11, y, WHITE, false);
 			y += 11;
 		}
+		HudLayout.end(g);
 
 		if (hud.getBool("Modules")) {
+			HudLayout.begin(g, HudLayout.MODS);
+			int maxMw = 40;
 			List<Module> list = new ArrayList<>();
 			for (Module m : ModuleManager.MODULES) {
 				float target = (m.isEnabled() && m != ModuleManager.INTERFACE && m != hud) ? 1f : 0f;
@@ -996,18 +1049,21 @@ public final class Hud {
 					list.add(m);
 				}
 			}
-			list.sort(Comparator.comparingInt(m -> -f.width(m.getName())));
+			list.sort(Comparator.comparingInt(m -> -Txt.width(f, m.getName())));
 			int right = g.guiWidth() - 4;
 			int ry = 4;
 			for (Module m : list) {
-				int mw = f.width(m.getName());
+				int mw = Txt.width(f, m.getName());
+				maxMw = Math.max(maxMw, mw);
 				float an = m.hudAnim;
 				int off = (int) ((1f - an) * (mw + 14));
 				Gfx.round(g, right - mw - 8 + off, ry, right + off, ry + 11, 2, Theme.alpha(Theme.hudBg(), an));
 				g.fill(right - 2 + off, ry, right + off, ry + 11, Theme.alpha(accent, an));
-				g.drawString(f, m.getName(), right - mw - 5 + off, ry + 2, Theme.alpha(accent, an), false);
+				Txt.draw(g, f, m.getName(), right - mw - 5 + off, ry + 2, Theme.alpha(accent, an), false);
 				ry += Math.round(12 * an);
 			}
+			HudLayout.report(HudLayout.MODS, right - maxMw - 8, 4, right, Math.max(ry, 16));
+			HudLayout.end(g);
 		}
 	}
 
@@ -1023,7 +1079,7 @@ public final class Hud {
 		int c = Theme.mix(0xA0080810, Theme.accent(), KEYANIM[i] * 0.85f);
 		Gfx.round(g, x, y, x + w, y + h, 3, c);
 		if (!label.isEmpty()) {
-			g.drawString(f, label, x + (w - f.width(label)) / 2, y + (h - 8) / 2 + 1, Theme.mix(Theme.MUTED, WHITE, KEYANIM[i]), false);
+			Txt.draw(g, f, label, x + (w - Txt.width(f, label)) / 2, y + (h - 8) / 2 + 1, Theme.mix(Theme.MUTED, WHITE, KEYANIM[i]), false);
 		}
 	}
 
@@ -1032,6 +1088,7 @@ public final class Hud {
 		boolean free = mc.screen == null;
 		int ox = g.guiWidth() - 68;
 		int oy = g.guiHeight() / 2 + 10;
+		HudLayout.report(HudLayout.KEYS, ox, oy, ox + 58, oy + 84);
 		for (int i = 0; i < 5; i++) {
 			int[] p = KEYPOS[i];
 			keyBox(g, f, i, ox + p[0], oy + p[1], p[2], p[3], free && Input.key(KEYCODES[i]), KEYLABELS[i]);
@@ -1054,7 +1111,7 @@ public final class Hud {
 			}
 			String s = clicks.size() + " CPS";
 			int sy = oy + (ModuleManager.KEYSTROKES.getBool("Mouse") ? 74 : 56);
-			g.drawString(f, s, ox + (58 - f.width(s)) / 2, sy, Theme.MUTED, false);
+			Txt.draw(g, f, s, ox + (58 - Txt.width(f, s)) / 2, sy, Theme.MUTED, false);
 		}
 	}
 
@@ -1094,6 +1151,135 @@ public final class Hud {
 					Notify.push((trial ? "Trial spawner " : "Spawner ") + (int) Math.sqrt(d2) + "m", trial ? 0xFF4DD8FF : 0xFFFF3B3B);
 				}
 			}
+		}
+	}
+
+	private static final double[] TMP2 = new double[2];
+	private static final float[] FT = new float[90];
+	private static int ftI;
+	private static final int[] COUNTS = new int[5];
+	private static ItemStack[] ci;
+	private static final String[] COUNT_KEYS = {"Totems", "Pearls", "Apples", "Arrows", "XP bottles"};
+
+	private static void line3(GuiGraphics g, double x1, double y1, double z1, double x2, double y2, double z2, int color) {
+		if (Projector.project(x1, y1, z1, TMP) && Projector.project(x2, y2, z2, TMP2)) {
+			edge(g, TMP[0], TMP[1], TMP2[0], TMP2[1], color);
+		}
+	}
+
+	private static void drawChunks(GuiGraphics g, Minecraft mc) {
+		Module m = ModuleManager.CHUNKS;
+		int c = pick(m);
+		int r = (int) m.getNum("Radius");
+		int bx = (mc.player.getBlockX() >> 4) << 4;
+		int bz = (mc.player.getBlockZ() >> 4) << 4;
+		int y0 = (mc.player.getBlockY() >> 4) << 4;
+		for (int gx = -r; gx <= r + 1; gx++) {
+			for (int gz = -r; gz <= r + 1; gz++) {
+				boolean inner = (gx == 0 || gx == 1) && (gz == 0 || gz == 1);
+				int col = inner ? c : Theme.alpha(c, 0.3);
+				double x = bx + gx * 16.0;
+				double z = bz + gz * 16.0;
+				line3(g, x, y0 - 16, z, x, y0 + 32, z, col);
+			}
+		}
+		for (int k = 0; k <= 1; k++) {
+			double y = y0 + k * 16.0;
+			line3(g, bx, y, bz, bx + 16, y, bz, c);
+			line3(g, bx + 16, y, bz, bx + 16, y, bz + 16, c);
+			line3(g, bx + 16, y, bz + 16, bx, y, bz + 16, c);
+			line3(g, bx, y, bz + 16, bx, y, bz, c);
+		}
+	}
+
+	private static void drawLowHealth(GuiGraphics g, Minecraft mc) {
+		Module m = ModuleManager.LOWHP;
+		float hp = mc.player.getHealth();
+		double thr = m.getNum("Health");
+		if (hp > thr || !mc.player.isAlive()) {
+			return;
+		}
+		double pulse = 0.65 + 0.35 * Math.sin(System.currentTimeMillis() / 220.0);
+		double sev = 1.0 - Math.max(0.0, hp - 1.0) / Math.max(1.0, thr);
+		int c = Theme.alpha(0xFFFF1020, m.getNum("Strength") * pulse * (0.5 + 0.5 * sev));
+		int w = g.guiWidth();
+		int h = g.guiHeight();
+		int band = (int) (h * 0.32);
+		g.fillGradient(0, 0, w, band, c, 0x00000000);
+		g.fillGradient(0, h - band, w, h, 0x00000000, c);
+	}
+
+	private static void countItems(Minecraft mc) {
+		for (int i = 0; i < COUNTS.length; i++) {
+			COUNTS[i] = 0;
+		}
+		var inv = mc.player.getInventory();
+		for (int i = 0; i < inv.getContainerSize(); i++) {
+			ItemStack s = inv.getItem(i);
+			if (s.isEmpty()) {
+				continue;
+			}
+			if (s.is(Items.TOTEM_OF_UNDYING)) {
+				COUNTS[0] += s.getCount();
+			} else if (s.is(Items.ENDER_PEARL)) {
+				COUNTS[1] += s.getCount();
+			} else if (s.is(Items.GOLDEN_APPLE) || s.is(Items.ENCHANTED_GOLDEN_APPLE)) {
+				COUNTS[2] += s.getCount();
+			} else if (s.is(Items.ARROW)) {
+				COUNTS[3] += s.getCount();
+			} else if (s.is(Items.EXPERIENCE_BOTTLE)) {
+				COUNTS[4] += s.getCount();
+			}
+		}
+	}
+
+	private static void drawCounters(GuiGraphics g, Minecraft mc) {
+		if (ci == null) {
+			ci = new ItemStack[] {
+				new ItemStack(Items.TOTEM_OF_UNDYING), new ItemStack(Items.ENDER_PEARL),
+				new ItemStack(Items.GOLDEN_APPLE), new ItemStack(Items.ARROW), new ItemStack(Items.EXPERIENCE_BOTTLE)
+			};
+		}
+		Module m = ModuleManager.COUNTERS;
+		Font f = mc.font;
+		int x = g.guiWidth() - 52;
+		int y0 = g.guiHeight() / 2 - 96;
+		int rows = 0;
+		for (String k : COUNT_KEYS) {
+			if (m.getBool(k)) {
+				rows++;
+			}
+		}
+		HudLayout.report(HudLayout.COUNTERS, x, y0, x + 48, y0 + Math.max(rows, 1) * 18);
+		int y = y0;
+		for (int i = 0; i < COUNT_KEYS.length; i++) {
+			if (!m.getBool(COUNT_KEYS[i])) {
+				continue;
+			}
+			Gfx.round(g, x, y, x + 48, y + 16, 3, Theme.hudBg());
+			g.renderItem(ci[i], x + 1, y);
+			Txt.draw(g, f, String.valueOf(COUNTS[i]), x + 20, y + 4, COUNTS[i] > 0 ? WHITE : Theme.MUTED, false);
+			y += 18;
+		}
+	}
+
+	private static void drawFrameGraph(GuiGraphics g, Minecraft mc) {
+		Font f = mc.font;
+		int x = g.guiWidth() / 2 - 47;
+		int y = 64;
+		HudLayout.report(HudLayout.FRAME, x, y, x + 94, y + 40);
+		Gfx.round(g, x, y, x + 94, y + 40, 3, Theme.hudBg());
+		float sum = 0f;
+		for (int i = 0; i < 30; i++) {
+			sum += FT[(ftI - 1 - i + FT.length * 2) % FT.length];
+		}
+		float avg = Math.max(0.5f, sum / 30f);
+		Txt.draw(g, f, (int) (1000f / avg) + " FPS", x + 4, y + 3, Theme.accent(), false);
+		for (int i = 0; i < FT.length; i++) {
+			float ms = FT[(ftI + i) % FT.length];
+			int h = (int) Math.min(22f, ms / 33.3f * 22f);
+			int c = ms < 16.9f ? 0xFF45E36B : (ms < 33.4f ? 0xFFFFD33D : 0xFFFF3B3B);
+			g.fill(x + 2 + i, y + 38 - h, x + 3 + i, y + 38, c);
 		}
 	}
 
@@ -1273,6 +1459,7 @@ public final class Hud {
 		int accent = Theme.accent();
 		double heading = (((mc.player.getYRot() + 180.0) % 360.0) + 360.0) % 360.0;
 		String[] names = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+		HudLayout.report(HudLayout.COMPASS, cx - half - 8, y, cx + half + 8, y + 30);
 		Gfx.round(g, cx - half - 8, y, cx + half + 8, y + 16, 3, Theme.hudBg());
 		for (int i = 0; i < 24; i++) {
 			double d = ((i * 15 - heading + 540.0) % 360.0) - 180.0;
@@ -1285,19 +1472,20 @@ public final class Hud {
 			if (i % 3 == 0) {
 				String s = names[i / 3];
 				int col = i % 6 == 0 ? accent : WHITE;
-				g.drawString(f, s, x - f.width(s) / 2, y + 4, Theme.alpha(col, 0.3 + 0.7 * k), false);
+				Txt.draw(g, f, s, x - Txt.width(f, s) / 2, y + 4, Theme.alpha(col, 0.3 + 0.7 * k), false);
 			} else {
 				g.fill(x, y + 6, x + 1, y + 10, Theme.alpha(Theme.MUTED, k));
 			}
 		}
 		g.fill(cx - 1, y + 13, cx + 2, y + 16, accent);
 		String deg = (int) heading + "\u00B0";
-		g.drawString(f, deg, cx - f.width(deg) / 2, y + 19, Theme.MUTED, false);
+		Txt.draw(g, f, deg, cx - Txt.width(f, deg) / 2, y + 19, Theme.MUTED, false);
 	}
 
 	private static void drawEffects(GuiGraphics g, Minecraft mc) {
 		Font f = mc.font;
 		int y = 80;
+		int maxW = 96;
 		for (MobEffectInstance e : mc.player.getActiveEffects()) {
 			String name = e.getEffect().value().getDisplayName().getString();
 			if (e.getAmplifier() > 0) {
@@ -1305,14 +1493,16 @@ public final class Hud {
 			}
 			int secs = e.getDuration() / 20;
 			String time = e.isInfiniteDuration() ? "--" : String.format("%d:%02d", secs / 60, secs % 60);
-			int w = f.width(name) + f.width(time) + 16;
+			int w = Txt.width(f, name) + Txt.width(f, time) + 16;
+			maxW = Math.max(maxW, w);
 			int c = e.getEffect().value().isBeneficial() ? 0xFF45E36B : 0xFFFF3B3B;
 			Gfx.round(g, 4, y, 4 + w, y + 12, 2, Theme.hudBg());
 			g.fill(4, y + 1, 6, y + 11, c);
-			g.drawString(f, name, 10, y + 2, WHITE, false);
-			g.drawString(f, time, 4 + w - 4 - f.width(time), y + 2, Theme.MUTED, false);
+			Txt.draw(g, f, name, 10, y + 2, WHITE, false);
+			Txt.draw(g, f, time, 4 + w - 4 - Txt.width(f, time), y + 2, Theme.MUTED, false);
 			y += 13;
 		}
+		HudLayout.report(HudLayout.EFFECTS, 4, 80, 4 + maxW, y == 80 ? 93 : y);
 	}
 
 	private static void drawSpotify(GuiGraphics g, Minecraft mc) {
@@ -1324,12 +1514,13 @@ public final class Hud {
 		if (t.length() > 46) {
 			t = t.substring(0, 46) + "...";
 		}
-		int w = Math.max(f.width(t), f.width("Now playing"));
+		int w = Math.max(Txt.width(f, t), Txt.width(f, "Now playing"));
 		int x = (g.guiWidth() - w) / 2;
 		int y = 4;
+		HudLayout.report(HudLayout.SPOTIFY, x - 12, y, x + w + 8, y + 24);
 		Gfx.round(g, x - 12, y, x + w + 8, y + 24, 4, 0xC0080810);
 		Gfx.round(g, x - 12, y + 2, x - 9, y + 22, 1, 0xFF1DB954);
-		g.drawString(f, "Now playing", x, y + 3, 0xFF1DB954, false);
-		g.drawString(f, t, x, y + 13, WHITE, false);
+		Txt.draw(g, f, "Now playing", x, y + 3, 0xFF1DB954, false);
+		Txt.draw(g, f, t, x, y + 13, WHITE, false);
 	}
 }

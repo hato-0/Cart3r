@@ -14,6 +14,7 @@ import net.minecraft.resources.Identifier;
 
 public class Cart3rClient implements ClientModInitializer {
 	private static boolean openRequested = false;
+	private static boolean editorRequested = false;
 	private static boolean keyWasDown = false;
 	private static boolean joined = false;
 
@@ -22,13 +23,19 @@ public class Cart3rClient implements ClientModInitializer {
 		Config.load();
 		Waypoints.load();
 		Profiles.load();
+		HudLayout.load();
 
-		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-			dispatcher.register(ClientCommandManager.literal("cart3r")
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+			var node = dispatcher.register(ClientCommandManager.literal("cart3r")
 				.executes(ctx -> {
 					openRequested = true;
 					return 1;
 				})
+				.then(ClientCommandManager.literal("hud")
+					.executes(ctx -> {
+						editorRequested = true;
+						return 1;
+					}))
 				.then(ClientCommandManager.literal("profile")
 					.then(ClientCommandManager.literal("save")
 						.then(ClientCommandManager.argument("name", StringArgumentType.word())
@@ -95,7 +102,12 @@ public class Cart3rClient implements ClientModInitializer {
 							Waypoints.clear();
 							ctx.getSource().sendFeedback(Component.literal("All waypoints removed"));
 							return 1;
-						})))));
+						}))));
+			dispatcher.register(ClientCommandManager.literal("hato").executes(ctx -> {
+				openRequested = true;
+				return 1;
+			}).redirect(node));
+		});
 
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, tickCounter) -> {
 			if (!ModuleManager.CROSS.isEnabled()) {
@@ -118,6 +130,10 @@ public class Cart3rClient implements ClientModInitializer {
 			}
 			keyWasDown = down;
 
+			if (editorRequested && mc.player != null) {
+				editorRequested = false;
+				mc.setScreen(new HudEditorScreen());
+			}
 			if (openRequested && mc.player != null) {
 				openRequested = false;
 				mc.setScreen(new MenuScreen());
@@ -132,7 +148,7 @@ public class Cart3rClient implements ClientModInitializer {
 			}
 			if (!joined) {
 				joined = true;
-				Notify.push("CART3R v9 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
+				Notify.push("HATO v10 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
 				ModuleManager.onJoin(mc);
 			}
 

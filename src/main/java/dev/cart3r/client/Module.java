@@ -10,9 +10,11 @@ public abstract class Module {
 	public enum Category {
 		MOVEMENT("Move"),
 		RENDER("Render"),
+		WORLD("World"),
 		VISUAL("Visual"),
 		PLAYER("Player"),
 		UTILITY("Utility"),
+		HUD("HUD"),
 		PERFORMANCE("Perf"),
 		CLIENT("Client");
 

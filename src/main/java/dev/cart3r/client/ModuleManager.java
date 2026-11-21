@@ -12,6 +12,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -176,6 +177,17 @@ public final class ModuleManager {
 				}
 			}
 		},
+		new Module("ElytraBoost", Category.MOVEMENT, "Hold forward while gliding to speed up") {
+			private final Setting power = num("Power", 0.01, 0.1, 0.04, 0.01);
+
+			@Override
+			public void onTick(Minecraft mc) {
+				LocalPlayer p = mc.player;
+				if (p.isFallFlying() && mc.options.keyUp.isDown()) {
+					p.setDeltaMovement(p.getDeltaMovement().add(p.getLookAngle().scale(power.num())));
+				}
+			}
+		},
 		new Module("Spider", Category.MOVEMENT, "Climb walls you touch") {
 			@Override
 			public void onTick(Minecraft mc) {
@@ -334,11 +346,11 @@ public final class ModuleManager {
 			private final Setting health = toggle("Health", true);
 			private final Setting distance = toggle("Distance", true);
 		},
-		new Module("LightDebug", Category.RENDER, "Mark nearby spots where monsters can spawn") {
+		new Module("LightDebug", Category.WORLD, "Mark nearby spots where monsters can spawn") {
 			private final Setting radius = num("Radius", 4, 16, 8, 1);
 			private final Setting night = toggle("Night spots", true);
 		},
-		new Module("StorageESP", Category.RENDER, "Find trial chambers and vaults (singleplayer: also spawners and chests)") {
+		new Module("StorageESP", Category.WORLD, "Find trial chambers and vaults (singleplayer: also spawners and chests)") {
 			private final Setting trial = toggle("Trials", true);
 			private final Setting vaults = toggle("Vaults", true);
 			private final Setting spawners = toggle("Spawners", true);
@@ -356,7 +368,7 @@ public final class ModuleManager {
 			private final Setting eye = toggle("Eye line", true);
 			private final Setting range = num("Range", 8, 128, 48, 4);
 		},
-		new Module("OreESP", Category.RENDER, "Mark ores nearby. Most servers forbid this - use in singleplayer!") {
+		new Module("OreESP", Category.WORLD, "Mark ores nearby. Most servers forbid this - use in singleplayer!") {
 			private final Setting radius = num("Radius", 8, 24, 16, 2);
 			private final Setting diamond = toggle("Diamond", true);
 			private final Setting debris = toggle("Debris", true);
@@ -365,7 +377,7 @@ public final class ModuleManager {
 			private final Setting iron = toggle("Iron", false);
 			private final Setting others = toggle("Others", false);
 		},
-		new Module("Waypoints", Category.RENDER, "Show saved waypoints. Chat: /cart3r wp add <name>") {
+		new Module("Waypoints", Category.WORLD, "Show saved waypoints. Chat: /cart3r wp add <name>") {
 			private final Setting distance = toggle("Distance", true);
 			private final Setting death = toggle("Death point", true);
 			private boolean saved;
@@ -382,7 +394,7 @@ public final class ModuleManager {
 				}
 			}
 		},
-		new Module("Breadcrumbs", Category.RENDER, "Draw a trail of where you walked") {
+		new Module("Breadcrumbs", Category.WORLD, "Draw a trail of where you walked") {
 			private final Setting length = num("Length", 20, 200, 100, 10);
 		},
 		new Module("BlockOverlay", Category.RENDER, "Highlight the block you are looking at") {
@@ -391,7 +403,7 @@ public final class ModuleManager {
 			private final Setting opacity = num("Fill opacity", 0.05, 0.6, 0.2, 0.05);
 			private final Setting thick = num("Thickness", 1, 3, 1, 1);
 		},
-		new Module("JumpCircles", Category.VISUAL, "Expanding ring where you jump") {
+		new Module("JumpCircles", Category.RENDER, "Expanding ring where you jump") {
 			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
 			private final Setting size = num("Size", 1, 4, 1.8, 0.2);
 			private final Setting duration = num("Duration", 300, 1500, 700, 100);
@@ -400,9 +412,9 @@ public final class ModuleManager {
 			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
 			private final Setting style = options("Style", 0, "Ring", "Corners");
 		},
-		new Module("WeatherNotifier", Category.UTILITY, "Message when rain or thunder starts and stops") {
+		new Module("WeatherNotifier", Category.WORLD, "Message when rain or thunder starts and stops") {
 		},
-		new Module("SpawnerNotifier", Category.UTILITY, "Message when a spawner is nearby (singleplayer; trial spawners everywhere)") {
+		new Module("SpawnerNotifier", Category.WORLD, "Message when a spawner is nearby (singleplayer; trial spawners everywhere)") {
 			private final Setting range = num("Range", 16, 128, 64, 8);
 		},
 		new Module("ColorGrade", Category.VISUAL, "Screen tint and vignette") {
@@ -411,7 +423,7 @@ public final class ModuleManager {
 			private final Setting vignette = toggle("Vignette", true);
 			private final Setting vstrength = num("Vignette strength", 0.1, 0.8, 0.4, 0.1);
 		},
-		new Module("Crosshair+", Category.CLIENT, "Custom crosshair that replaces the vanilla one") {
+		new Module("Crosshair+", Category.HUD, "Custom crosshair that replaces the vanilla one") {
 			private final Setting style = options("Style", 0, "Cross", "Dot", "Circle", "Plus");
 			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
 			private final Setting size = num("Size", 2, 12, 5, 1);
@@ -419,6 +431,39 @@ public final class ModuleManager {
 			private final Setting thick = num("Thick", 1, 3, 1, 1);
 			private final Setting dynamic = toggle("Dynamic", true);
 			private final Setting outline = toggle("Outline", true);
+		},
+		new Module("ChunkBorders", Category.WORLD, "Show chunk borders around you") {
+			private final Setting color = options("Color", 0, "Accent", "White", "Red", "Green", "Blue", "Yellow", "Pink");
+			private final Setting radius = num("Radius", 0, 3, 1, 1);
+		},
+		new Module("LowHealth", Category.VISUAL, "Pulsing red screen edges when your health is low") {
+			private final Setting health = num("Health", 2, 12, 8, 1);
+			private final Setting strength = num("Strength", 0.1, 0.8, 0.45, 0.05);
+		},
+		new Module("DurabilityAlert", Category.UTILITY, "Warn when your tool or armor is about to break") {
+			private final Setting percent = num("Percent", 5, 50, 15, 5);
+			private final long[] last = new long[6];
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.tickCount % 20 != 0) {
+					return;
+				}
+				long now = System.currentTimeMillis();
+				EquipmentSlot[] slots = {EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+					EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND};
+				for (int i = 0; i < slots.length; i++) {
+					ItemStack s = mc.player.getItemBySlot(slots[i]);
+					if (s.isEmpty() || !s.isDamageableItem() || s.getMaxDamage() <= 0) {
+						continue;
+					}
+					int left = (s.getMaxDamage() - s.getDamageValue()) * 100 / s.getMaxDamage();
+					if (left <= percent.num() && now - last[i] > 30000L) {
+						last[i] = now;
+						Notify.push("Low durability: " + s.getHoverName().getString() + " (" + left + "%)", 0xFFFFD33D);
+					}
+				}
+			}
 		},
 		new Module("FOV", Category.VISUAL, "Change your field of view") {
 			private final Setting fov = num("FOV", 30, 110, 90, 5);
@@ -472,7 +517,7 @@ public final class ModuleManager {
 				}
 			}
 		},
-		new Module("NoWeather", Category.VISUAL, "Remove rain and thunder visuals") {
+		new Module("NoWeather", Category.WORLD, "Remove rain and thunder visuals") {
 			@Override
 			public void onTick(Minecraft mc) {
 				mc.level.setRainLevel(0.0f);
@@ -590,6 +635,7 @@ public final class ModuleManager {
 			}
 		},
 		new Module("AutoEat", Category.PLAYER, "Eat food from your hotbar when hungry") {
+			private final Setting hunger = num("Hunger", 4, 19, 14, 1);
 			private boolean eating;
 			private int previous = -1;
 
@@ -607,7 +653,7 @@ public final class ModuleManager {
 				Inventory inv = mc.player.getInventory();
 				int food = mc.player.getFoodData().getFoodLevel();
 				if (!eating) {
-					if (food <= 14 && !mc.player.isUsingItem() && mc.screen == null) {
+					if (food <= (int) hunger.num() && !mc.player.isUsingItem() && mc.screen == null) {
 						for (int i = 0; i < 9; i++) {
 							if (isGoodFood(inv.getItem(i))) {
 								previous = inv.getSelectedSlot();
@@ -850,7 +896,41 @@ public final class ModuleManager {
 				}
 			}
 		},
-		new Module("HUD", Category.CLIENT, "Show FPS, coordinates and active modules") {
+		new Module("FPSLimit", Category.PERFORMANCE, "Cap your frame rate to save power and heat") {
+			private final Setting max = num("Max FPS", 30, 260, 120, 10);
+			private final Setting vsync = toggle("VSync off", false);
+			private int prev = 120;
+			private boolean prevSync;
+			private boolean saved;
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				prev = mc.options.framerateLimit().get();
+				prevSync = mc.options.enableVsync().get();
+				saved = true;
+			}
+
+			@Override
+			public void onTick(Minecraft mc) {
+				int t = (int) max.num();
+				if (mc.options.framerateLimit().get() != t) {
+					mc.options.framerateLimit().set(t);
+				}
+				if (vsync.bool() && mc.options.enableVsync().get()) {
+					mc.options.enableVsync().set(false);
+				}
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				if (saved) {
+					mc.options.framerateLimit().set(prev);
+					mc.options.enableVsync().set(prevSync);
+					saved = false;
+				}
+			}
+		},
+		new Module("HUD", Category.HUD, "Show FPS, coordinates and active modules") {
 			private final Setting fps = toggle("FPS", true);
 			private final Setting coords = toggle("Coords", true);
 			private final Setting modules = toggle("Modules", true);
@@ -858,26 +938,40 @@ public final class ModuleManager {
 			private final Setting time = toggle("Time", false);
 			private final Setting profile = toggle("Profile", true);
 			private final Setting speed = toggle("Speed", false);
+			private final Setting light = toggle("Light", false);
+			private final Setting facing = toggle("Facing", false);
 		},
-		new Module("Spotify", Category.CLIENT, "Now playing overlay (Windows desktop app)") {
+		new Module("Spotify", Category.HUD, "Now playing overlay (Windows desktop app)") {
 		},
-		new Module("Radar", Category.CLIENT, "Mini radar in the corner") {
+		new Module("Radar", Category.HUD, "Mini radar in the corner") {
 			private final Setting players = toggle("Players", true);
 			private final Setting monsters = toggle("Monsters", true);
 			private final Setting passive = toggle("Passive", false);
 			private final Setting items = toggle("Items", false);
 			private final Setting range = num("Range", 10, 100, 40, 5);
 			private final Setting size = num("Size", 40, 120, 80, 10);
+			private final Setting rotate = toggle("Rotate", true);
 		},
-		new Module("Compass", Category.CLIENT, "Direction bar at the top of the screen") {
+		new Module("Compass", Category.HUD, "Direction bar at the top of the screen") {
 		},
-		new Module("Effects", Category.CLIENT, "Show your active potion effects") {
+		new Module("Effects", Category.HUD, "Show your active potion effects") {
 		},
-		new Module("Keystrokes", Category.CLIENT, "Show pressed keys and mouse buttons") {
+		new Module("Counters", Category.HUD, "Item counters: totems, pearls, apples, arrows, XP") {
+			private final Setting totems = toggle("Totems", true);
+			private final Setting pearls = toggle("Pearls", true);
+			private final Setting apples = toggle("Apples", true);
+			private final Setting arrows = toggle("Arrows", false);
+			private final Setting xp = toggle("XP bottles", false);
+		},
+		new Module("FrameGraph", Category.HUD, "Live frame time graph") {
+		},
+		new Module("StreamerMode", Category.CLIENT, "Hide your coordinates on the HUD") {
+		},
+		new Module("Keystrokes", Category.HUD, "Show pressed keys and mouse buttons") {
 			private final Setting mouse = toggle("Mouse", true);
 			private final Setting cps = toggle("CPS", true);
 		},
-		new Module("ArmorHUD", Category.CLIENT, "Show your armor next to the hotbar") {
+		new Module("ArmorHUD", Category.HUD, "Show your armor next to the hotbar") {
 		},
 		new Module("Panic", Category.CLIENT, "Turn off every module at once") {
 			@Override
@@ -917,6 +1011,11 @@ public final class ModuleManager {
 	public static final Module SPAWNN = get("SpawnerNotifier");
 	public static final Module GRADE = get("ColorGrade");
 	public static final Module CROSS = get("Crosshair+");
+	public static final Module CHUNKS = get("ChunkBorders");
+	public static final Module LOWHP = get("LowHealth");
+	public static final Module COUNTERS = get("Counters");
+	public static final Module FRAMES = get("FrameGraph");
+	public static final Module STREAMER = get("StreamerMode");
 
 	private ModuleManager() {
 	}

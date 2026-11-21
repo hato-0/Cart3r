@@ -8,6 +8,11 @@ public final class Theme {
 	public static final Setting KEY_HINTS = Setting.toggle("Key hints", true);
 	public static final Setting GLOW = Setting.toggle("Glow", true);
 	public static final Setting HUD_OPACITY = Setting.number("HUD opacity", 0.2, 1.0, 0.8, 0.05);
+	public static final Setting MENU_SCALE = Setting.number("Menu scale", 0.8, 1.15, 1.0, 0.05);
+	public static final Setting STYLE = Setting.options("Look", 0, "Lunar", "Neon", "Glass");
+	public static final Setting FONT_STYLE = Setting.options("Font style", 0, "Normal", "Bold", "Italic", "Bold Italic", "Underline");
+	public static final Setting FONT_CASE = Setting.options("Text case", 0, "Normal", "UPPER", "lower");
+	public static final Setting TEXT_SHADOW = Setting.toggle("Text shadow", false);
 	public static final Setting NOTIFY = Setting.toggle("Notifications", true);
 
 	public static final int TEXT = 0xFFEDEDF2;
@@ -23,6 +28,14 @@ public final class Theme {
 	private static float dt = 0.016f;
 
 	private Theme() {
+	}
+
+	public static boolean glowOn() {
+		return GLOW.bool() && STYLE.num() > 0.5 && STYLE.num() < 1.5;
+	}
+
+	public static double panelAlpha() {
+		return STYLE.num() > 1.5 ? Math.min(OPACITY.num(), 0.72) : OPACITY.num();
 	}
 
 	public static int hudBg() {

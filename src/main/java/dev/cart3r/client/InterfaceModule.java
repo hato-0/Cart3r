@@ -5,7 +5,11 @@ import org.lwjgl.glfw.GLFW;
 public final class InterfaceModule extends Module {
 	public InterfaceModule() {
 		super("Interface", Category.CLIENT, "Menu look, animations and the menu key");
+		add(Theme.STYLE);
 		add(Theme.ACCENT);
+		add(Theme.FONT_STYLE);
+		add(Theme.FONT_CASE);
+		add(Theme.TEXT_SHADOW);
 		add(Theme.ANIMATIONS);
 		add(Theme.ANIM_MS);
 		add(Theme.OPACITY);
@@ -13,6 +17,7 @@ public final class InterfaceModule extends Module {
 		add(Theme.GLOW);
 		add(Theme.NOTIFY);
 		add(Theme.HUD_OPACITY);
+		add(Theme.MENU_SCALE);
 		setKey(GLFW.GLFW_KEY_RIGHT_SHIFT);
 		setEnabled(true);
 	}

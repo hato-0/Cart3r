@@ -44,7 +44,7 @@ public class MenuScreen extends Screen {
 	private String lastSearch = "";
 
 	public MenuScreen() {
-		super(Component.literal("CART3R CLIENT"));
+		super(Component.literal("HATO CLIENT"));
 		Theme.restart();
 		leftWas = Input.left();
 		rightWas = Input.right();
@@ -191,7 +191,7 @@ public class MenuScreen extends Screen {
 
 		float p = Theme.progress();
 		alpha = p;
-		float s = 0.94f + 0.06f * p;
+		float s = (0.94f + 0.06f * p) * (float) Theme.MENU_SCALE.num();
 		float cx = this.width / 2f;
 		float cy = this.height / 2f;
 		mx = (mouseX - cx) / s + cx;
@@ -267,15 +267,19 @@ public class MenuScreen extends Screen {
 
 	private void drawFrame(GuiGraphics g, Font f) {
 		int accent = Theme.accent();
-		if (Theme.GLOW.bool()) {
+		if (Theme.glowOn()) {
 			Gfx.glow(g, px, py, px + PW, py + ph, 5, accent, alpha);
 		}
-		Gfx.card(g, px, py, px + PW, py + ph, 5, a(Theme.dim(accent, 0.55), 1), a(Theme.PANEL, Theme.OPACITY.num()));
-		g.drawString(f, "CART3R", px + 12, py + 9, a(accent, 1), false);
-		g.drawString(f, "CLIENT", px + 12 + f.width("CART3R") + 5, py + 9, a(Theme.MUTED, 1), false);
-		String ver = "v9.0";
-		g.drawString(f, ver, px + PW - 12 - f.width(ver), py + 9, a(Theme.MUTED, 1), false);
+		Gfx.card(g, px, py, px + PW, py + ph, 5, a(Theme.dim(accent, 0.55), 1), a(Theme.PANEL, Theme.panelAlpha()));
+		Txt.draw(g, f, "HATO", px + 12, py + 9, a(accent, 1), false);
+		Txt.draw(g, f, "CLIENT", px + 12 + Txt.width(f, "HATO") + 5, py + 9, a(Theme.MUTED, 1), false);
+		String ver = "v10.0";
+		Txt.draw(g, f, ver, px + PW - 12 - Txt.width(f, ver), py + 9, a(Theme.MUTED, 1), false);
 		g.fill(px + 10, py + 27, px + PW - 10, py + 28, a(Theme.LINE, 1));
+		float sh = (System.currentTimeMillis() % 2600L) / 2600f;
+		int sx0 = px + 10 + (int) ((PW - 20 - 70) * sh);
+		g.fill(sx0, py + 27, sx0 + 70, py + 28, a(accent, 0.3));
+		g.fill(sx0 + 18, py + 27, sx0 + 52, py + 28, a(accent, 0.9));
 	}
 
 	private void drawTabs(GuiGraphics g, Font f, boolean lClick) {
@@ -293,7 +297,7 @@ public class MenuScreen extends Screen {
 			}
 			int col = on ? accent : (hover ? Theme.TEXT : Theme.MUTED);
 			String label = cats[i].label;
-			g.drawString(f, label, x1 + (tw - f.width(label)) / 2, ty + 5, a(col, 1), false);
+			Txt.draw(g, f, label, x1 + (tw - Txt.width(f, label)) / 2, ty + 5, a(col, 1), false);
 			if (lClick && hover && !on) {
 				select(cats[i]);
 			}
@@ -345,7 +349,7 @@ public class MenuScreen extends Screen {
 				Gfx.round(g, x + 3, y + 4, x + 5, y + 16, 1, a(accent, k * m.guiAnim));
 			}
 			int tc = Theme.mix(0xFFB4B4C0, Theme.TEXT, Math.max(m.guiAnim, m.guiHover * 0.6f));
-			g.drawString(f, m.getName(), x + 11, y + 6, a(tc, k), false);
+			Txt.draw(g, f, m.getName(), x + 11, y + 6, a(tc, k), false);
 
 			boolean isIface = m instanceof InterfaceModule;
 			int gx = x + lw - 18;
@@ -355,8 +359,8 @@ public class MenuScreen extends Screen {
 			}
 			String hint = keyHint(m);
 			if (!hint.isEmpty()) {
-				int hx = (isIface ? gx - 4 : swx1 - 6) - f.width(hint);
-				g.drawString(f, hint, hx, y + 6, a(Theme.MUTED, k), false);
+				int hx = (isIface ? gx - 4 : swx1 - 6) - Txt.width(f, hint);
+				Txt.draw(g, f, hint, hx, y + 6, a(Theme.MUTED, k), false);
 			}
 			boolean gearHit = inRow && inside(mx, my, gx, y + 3, 14, 14);
 			int gc = (gearHit || m == picked) ? accent : Theme.MUTED;
@@ -394,7 +398,7 @@ public class MenuScreen extends Screen {
 		StringBuilder cur = new StringBuilder();
 		for (String word : text.split(" ")) {
 			String test = cur.length() == 0 ? word : cur + " " + word;
-			if (f.width(test) <= maxW) {
+			if (Txt.width(f, test) <= maxW) {
 				cur = new StringBuilder(test);
 			} else {
 				if (cur.length() > 0) {
@@ -428,10 +432,10 @@ public class MenuScreen extends Screen {
 		int cx2 = x + w - 8;
 		int y = top + 8;
 
-		g.drawString(f, m.getName(), cx1, y, a(accent, 1), false);
+		Txt.draw(g, f, m.getName(), cx1, y, a(accent, 1), false);
 		y += 12;
 		for (String line : wrap(f, m.getDescription(), cx2 - cx1, 3)) {
-			g.drawString(f, line, cx1, y, a(Theme.MUTED, 1), false);
+			Txt.draw(g, f, line, cx1, y, a(Theme.MUTED, 1), false);
 			y += 10;
 		}
 		y += 3;
@@ -440,7 +444,7 @@ public class MenuScreen extends Screen {
 
 		if (!(m instanceof InterfaceModule)) {
 			boolean hit = inside(mx, my, cx1, y, cx2 - cx1, 16);
-			g.drawString(f, "Enabled", cx1, y + 4, a(Theme.TEXT, 1), false);
+			Txt.draw(g, f, "Enabled", cx1, y + 4, a(Theme.TEXT, 1), false);
 			drawSwitch(g, cx2 - 22, y + 3, m.guiAnim, 1f);
 			if (hit && lClick) {
 				m.toggle(mc);
@@ -451,12 +455,12 @@ public class MenuScreen extends Screen {
 		{
 			boolean hit = inside(mx, my, cx1, y, cx2 - cx1, 16);
 			boolean listen = listening == m;
-			g.drawString(f, "Keybind", cx1, y + 4, a(Theme.TEXT, 1), false);
+			Txt.draw(g, f, "Keybind", cx1, y + 4, a(Theme.TEXT, 1), false);
 			String v = listen ? "press a key..." : Module.keyName(m.getKey());
-			int bw = f.width(v) + 12;
+			int bw = Txt.width(f, v) + 12;
 			int border = (hit || listen) ? accent : 0xFF2A2A36;
 			Gfx.card(g, cx2 - bw, y, cx2, y + 16, 3, a(border, 1), a(0xFF171720, 1));
-			g.drawString(f, v, cx2 - bw + 6, y + 4, a(listen ? accent : Theme.TEXT, 1), false);
+			Txt.draw(g, f, v, cx2 - bw + 6, y + 4, a(listen ? accent : Theme.TEXT, 1), false);
 			if (hit && lClick) {
 				startListening(m);
 			}
@@ -492,7 +496,7 @@ public class MenuScreen extends Screen {
 			boolean hit = inside(mx, my, bx, by, cw, 17);
 			s.anim = Theme.approach(s.anim, s.bool() ? 1f : 0f, 16f);
 			Gfx.round(g, bx, by, bx + cw, by + 17, 3, a(hit ? 0xFF22222E : 0xFF181821, 1));
-			g.drawString(f, s.name(), bx + 6, by + 5, a(Theme.mix(0xFF9A9AA8, Theme.TEXT, s.anim), 1), false);
+			Txt.draw(g, f, s.name(), bx + 6, by + 5, a(Theme.mix(0xFF9A9AA8, Theme.TEXT, s.anim), 1), false);
 			drawSwitch(g, bx + cw - 26, by + 3, s.anim, 1f);
 			if (hit && (lClick || rClick)) {
 				s.bump(1, false);
@@ -509,12 +513,12 @@ public class MenuScreen extends Screen {
 			}
 			boolean hit = inside(mx, my, cx1, y, cx2 - cx1, 18);
 			Gfx.round(g, cx1, y, cx2, y + 18, 3, a(hit ? 0xFF22222E : 0xFF181821, 1));
-			g.drawString(f, s.name(), cx1 + 6, y + 5, a(Theme.TEXT, 1), false);
+			Txt.draw(g, f, s.name(), cx1 + 6, y + 5, a(Theme.TEXT, 1), false);
 			String v = s.format();
-			int vw = f.width(v);
-			g.drawString(f, ">", cx2 - 12, y + 5, a(Theme.MUTED, 1), false);
-			g.drawString(f, v, cx2 - 18 - vw, y + 5, a(accent, 1), false);
-			g.drawString(f, "<", cx2 - 28 - vw, y + 5, a(Theme.MUTED, 1), false);
+			int vw = Txt.width(f, v);
+			Txt.draw(g, f, ">", cx2 - 12, y + 5, a(Theme.MUTED, 1), false);
+			Txt.draw(g, f, v, cx2 - 18 - vw, y + 5, a(accent, 1), false);
+			Txt.draw(g, f, "<", cx2 - 28 - vw, y + 5, a(Theme.MUTED, 1), false);
 			if (hit && lClick) {
 				s.bump(1, false);
 				Config.save();
@@ -531,9 +535,9 @@ public class MenuScreen extends Screen {
 				break;
 			}
 			boolean hit = inside(mx, my, cx1, y, cx2 - cx1, 26);
-			g.drawString(f, s.name(), cx1 + 2, y + 2, a(Theme.TEXT, 1), false);
+			Txt.draw(g, f, s.name(), cx1 + 2, y + 2, a(Theme.TEXT, 1), false);
 			String v = s.format();
-			g.drawString(f, v, cx2 - 2 - f.width(v), y + 2, a(accent, 1), false);
+			Txt.draw(g, f, v, cx2 - 2 - Txt.width(f, v), y + 2, a(accent, 1), false);
 			int tx1 = cx1 + 2;
 			int tx2 = cx2 - 2;
 			int ty = y + 15;
@@ -561,7 +565,7 @@ public class MenuScreen extends Screen {
 		boolean h1 = inside(mx, my, bx, y, bw, 16);
 		Gfx.round(g, bx, y, bx + bw, y + 16, 3, a(h1 ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
 		String t1 = "Disable all";
-		g.drawString(f, t1, bx + (bw - f.width(t1)) / 2, y + 4, a(Theme.TEXT, 1), false);
+		Txt.draw(g, f, t1, bx + (bw - Txt.width(f, t1)) / 2, y + 4, a(Theme.TEXT, 1), false);
 		if (h1 && lClick) {
 			ModuleManager.disableAll(mc);
 		}
@@ -571,9 +575,20 @@ public class MenuScreen extends Screen {
 		boolean hp = inside(mx, my, pbx, y, pw2, 16);
 		Gfx.round(g, pbx, y, pbx + pw2, y + 16, 3, a(hp ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
 		String tp = "Profiles";
-		g.drawString(f, tp, pbx + (pw2 - f.width(tp)) / 2, y + 4, a(Theme.TEXT, 1), false);
+		Txt.draw(g, f, tp, pbx + (pw2 - Txt.width(f, tp)) / 2, y + 4, a(Theme.TEXT, 1), false);
 		if (hp && lClick) {
 			mc.setScreen(new ProfilesScreen());
+			return;
+		}
+
+		int ew = 60;
+		int ebx = pbx + pw2 + 6;
+		boolean he = inside(mx, my, ebx, y, ew, 16);
+		Gfx.round(g, ebx, y, ebx + ew, y + 16, 3, a(he ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
+		String te = "Edit HUD";
+		Txt.draw(g, f, te, ebx + (ew - Txt.width(f, te)) / 2, y + 4, a(Theme.TEXT, 1), false);
+		if (he && lClick) {
+			mc.setScreen(new HudEditorScreen());
 			return;
 		}
 
@@ -582,18 +597,18 @@ public class MenuScreen extends Screen {
 		boolean h2 = inside(mx, my, cx, y, cw, 16);
 		Gfx.round(g, cx, y, cx + cw, y + 16, 3, a(h2 ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
 		String t2 = "Close";
-		g.drawString(f, t2, cx + (cw - f.width(t2)) / 2, y + 4, a(Theme.TEXT, 1), false);
+		Txt.draw(g, f, t2, cx + (cw - Txt.width(f, t2)) / 2, y + 4, a(Theme.TEXT, 1), false);
 		if (h2 && lClick) {
 			closeRequested = true;
 		}
 
-		String hint = hoverDesc.isEmpty() ? "Left: toggle   Right: settings" : hoverDesc;
-		int avail = (cx - 8) - (pbx + pw2 + 8);
-		while (hint.length() > 3 && f.width(hint) > avail) {
+		String hint = hoverDesc.isEmpty() ? "L: toggle  R: settings" : hoverDesc;
+		int avail = (cx - 8) - (ebx + ew + 8);
+		while (hint.length() > 3 && Txt.width(f, hint) > avail) {
 			hint = hint.substring(0, hint.length() - 1);
 		}
-		int hx = pbx + pw2 + 8 + (avail - f.width(hint)) / 2;
-		g.drawString(f, hint, hx, y + 4, a(Theme.MUTED, 1), false);
+		int hx = ebx + ew + 8 + (avail - Txt.width(f, hint)) / 2;
+		Txt.draw(g, f, hint, hx, y + 4, a(Theme.MUTED, 1), false);
 	}
 
 	@Override
