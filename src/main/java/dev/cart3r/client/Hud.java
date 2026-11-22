@@ -113,7 +113,7 @@ public final class Hud {
 			|| ModuleManager.NAMETAGS.isEnabled() || ModuleManager.HITBOXES.isEnabled()
 			|| ModuleManager.RADAR.isEnabled() || ModuleManager.ITEMLAB.isEnabled();
 		if (ent) {
-			if (t % 2 == 0) {
+			if (t % (mc.getFps() < 45 ? 4 : 2) == 0) {
 				refreshTargets(mc);
 			}
 		} else if (!targets.isEmpty()) {
@@ -207,6 +207,13 @@ public final class Hud {
 			}
 		} else if (!seen.isEmpty()) {
 			seen.clear();
+		}
+
+		if (ModuleManager.DMG.isEnabled()) {
+			damageNumbers(mc);
+		} else if (!HP.isEmpty() || !dmg.isEmpty()) {
+			HP.clear();
+			dmg.clear();
 		}
 
 		if (ModuleManager.HITP.isEnabled()) {
@@ -457,7 +464,8 @@ public final class Hud {
 			|| ModuleManager.ORES.isEnabled() || ModuleManager.WAYPOINTS.isEnabled()
 			|| ModuleManager.BREAD.isEnabled() || ModuleManager.BLOCKOV.isEnabled()
 			|| ModuleManager.JUMPC.isEnabled() || ModuleManager.TARGET.isEnabled()
-			|| ModuleManager.CHUNKS.isEnabled() || ModuleManager.ITEMLAB.isEnabled();
+			|| ModuleManager.CHUNKS.isEnabled() || ModuleManager.ITEMLAB.isEnabled()
+			|| ModuleManager.DMG.isEnabled();
 		if (needs && Projector.begin(mc, g, pt)) {
 			if (ModuleManager.STORAGE.isEnabled()) {
 				drawStorage(g, mc);
@@ -476,6 +484,9 @@ public final class Hud {
 			}
 			if (ModuleManager.ITEMLAB.isEnabled()) {
 				drawItemLabels(g, mc, pt);
+			}
+			if (ModuleManager.DMG.isEnabled()) {
+				drawDamage(g, mc);
 			}
 			if (ModuleManager.JUMPC.isEnabled()) {
 				drawJumpCircles(g);
@@ -1193,6 +1204,8 @@ public final class Hud {
 	private static final double[] TMP2 = new double[2];
 	public static long stopStart = System.currentTimeMillis();
 	private static int mobCount;
+	private static final java.util.HashMap<Integer, Float> HP = new java.util.HashMap<>();
+	private static final List<double[]> dmg = new ArrayList<>();
 	private static final java.util.HashMap<Integer, Integer> HURT = new java.util.HashMap<>();
 	private static final SimpleParticleType[] PTYPES = {
 		ParticleTypes.CRIT, ParticleTypes.ENCHANTED_HIT, ParticleTypes.HEART, ParticleTypes.FLAME,
@@ -1286,6 +1299,40 @@ public final class Hud {
 			}
 		}
 		return sb.toString();
+	}
+
+	private static void damageNumbers(Minecraft mc) {
+		Module m = ModuleManager.DMG;
+		double r2 = sq(m.getNum("Range"));
+		long now = System.currentTimeMillis();
+		for (Entity e : mc.level.entitiesForRendering()) {
+			if (!(e instanceof LivingEntity le) || e == mc.player || e.distanceToSqr(mc.player) > r2) {
+				continue;
+			}
+			float hp = le.getHealth();
+			Float prev = HP.put(le.getId(), hp);
+			if (prev != null && prev - hp > 0.05f && dmg.size() < 24) {
+				dmg.add(new double[] {le.getX(), le.getY() + le.getBbHeight(), le.getZ(), prev - hp, now});
+			}
+		}
+		if (HP.size() > 400) {
+			HP.clear();
+		}
+	}
+
+	private static void drawDamage(GuiGraphics g, Minecraft mc) {
+		long now = System.currentTimeMillis();
+		double dur = ModuleManager.DMG.getNum("Duration");
+		dmg.removeIf(o -> now - (long) o[4] > dur);
+		for (double[] o : dmg) {
+			double t = (now - (long) o[4]) / dur;
+			if (!Projector.project(o[0], o[1] + 0.2 + t * 0.9, o[2], TMP)) {
+				continue;
+			}
+			String s = o[3] == Math.floor(o[3]) ? String.valueOf((int) o[3]) : String.format("%.1f", o[3]);
+			int w = Txt.width(mc.font, s);
+			Txt.draw(g, mc.font, s, (int) TMP[0] - w / 2, (int) TMP[1], Theme.alpha(0xFFFF5566, 1.0 - t * t), true);
+		}
 	}
 
 	private static void hitParticles(Minecraft mc) {
@@ -1635,6 +1682,25 @@ public final class Hud {
 				Txt.draw(g, f, s, x - Txt.width(f, s) / 2, y + 4, Theme.alpha(col, 0.3 + 0.7 * k), false);
 			} else {
 				g.fill(x, y + 6, x + 1, y + 10, Theme.alpha(Theme.MUTED, k));
+			}
+		}
+		if (ModuleManager.WAYPOINTS.isEnabled()) {
+			String dim = mc.level.dimension().toString();
+			for (Waypoints.Point wp : Waypoints.LIST) {
+				if (!wp.dim().equals(dim)) {
+					continue;
+				}
+				double bx = wp.x() + 0.5 - mc.player.getX();
+				double bz = wp.z() + 0.5 - mc.player.getZ();
+				double d = ((Math.toDegrees(Math.atan2(bx, -bz)) - heading + 540.0) % 360.0) - 180.0;
+				double dpx = d * 1.5;
+				if (Math.abs(dpx) > half) {
+					continue;
+				}
+				int mx = cx + (int) dpx;
+				g.fill(mx, y + 9, mx + 1, y + 10, accent);
+				g.fill(mx - 1, y + 10, mx + 2, y + 11, accent);
+				g.fill(mx, y + 11, mx + 1, y + 12, accent);
 			}
 		}
 		g.fill(cx - 1, y + 13, cx + 2, y + 16, accent);

@@ -186,8 +186,22 @@ public class ProfilesScreen extends Screen {
 			Profiles.Profile ip = Profiles.importCode(mc.keyboardHandler.getClipboard());
 			Notify.push(ip != null ? "Imported: " + ip.name() : "No profile code in clipboard", ip != null ? accent : 0xFFFF3B3B);
 		}
-		String hint = "Copy = share code   Import = paste code";
-		Txt.draw(g, f, hint, px + PW - 10 - Txt.width(f, hint), by + 4, a(Theme.MUTED, 1), false);
+		int ex = px + PW - 10 - 68;
+		int ix = ex - 4 - 68;
+		boolean hx = inside(mouseX, mouseY, ex, by, 68, 16);
+		boolean hia = inside(mouseX, mouseY, ix, by, 68, 16);
+		Gfx.round(g, ex, by, ex + 68, by + 16, 3, a(hx ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
+		Gfx.round(g, ix, by, ix + 68, by + 16, 3, a(hia ? Theme.dim(accent, 0.45) : 0xFF181821, 1));
+		Txt.draw(g, f, "Import all", ix + (68 - Txt.width(f, "Import all")) / 2, by + 4, a(Theme.TEXT, 1), false);
+		Txt.draw(g, f, "Export all", ex + (68 - Txt.width(f, "Export all")) / 2, by + 4, a(Theme.TEXT, 1), false);
+		if (hx && click) {
+			mc.keyboardHandler.setClipboard(ConfigShare.export());
+			Notify.push("Everything copied - paste it on another PC", accent);
+		}
+		if (hia && click) {
+			boolean ok = ConfigShare.importCode(mc.keyboardHandler.getClipboard());
+			Notify.push(ok ? "Imported - restart Minecraft to apply" : "No HATO code in clipboard", ok ? accent : 0xFFFF3B3B);
+		}
 
 		if (toLoad != null) {
 			Profiles.apply(mc, toLoad);

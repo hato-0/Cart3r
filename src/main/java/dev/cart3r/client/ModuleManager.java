@@ -470,6 +470,10 @@ public final class ModuleManager {
 			private final Setting amount = num("Amount", 3, 30, 10, 1);
 			private final Setting range = num("Range", 8, 48, 24, 4);
 		},
+		new Module("DamageNumbers", Category.RENDER, "Floating damage numbers above hurt creatures") {
+			private final Setting duration = num("Duration", 500, 2000, 1000, 100);
+			private final Setting range = num("Range", 8, 48, 32, 4);
+		},
 		new Module("ItemLabels", Category.RENDER, "Show names and counts above dropped items") {
 			private final Setting range = num("Range", 8, 48, 24, 4);
 			private final Setting count = toggle("Count", true);
@@ -1036,6 +1040,7 @@ public final class ModuleManager {
 	public static final Module HITP = get("HitParticles");
 	public static final Module ITEMLAB = get("ItemLabels");
 	public static final Module STOPW = get("Stopwatch");
+	public static final Module DMG = get("DamageNumbers");
 
 	private ModuleManager() {
 	}

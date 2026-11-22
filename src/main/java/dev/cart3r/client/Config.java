@@ -41,6 +41,7 @@ public final class Config {
 				m.setEnabled(Boolean.parseBoolean(p.getProperty(m.getName(), "false")));
 			}
 			m.setKey((int) parse(p.getProperty(m.getName() + ".key"), m.getKey()));
+			m.favorite = Boolean.parseBoolean(p.getProperty(m.getName() + ".fav", "false"));
 			for (Setting s : m.getSettings()) {
 				String raw = p.getProperty(m.getName() + ".s." + s.name());
 				if (raw != null) {
@@ -55,12 +56,13 @@ public final class Config {
 		for (Module m : ModuleManager.MODULES) {
 			p.setProperty(m.getName(), Boolean.toString(m.persistent() && m.isEnabled()));
 			p.setProperty(m.getName() + ".key", Integer.toString(m.getKey()));
+			p.setProperty(m.getName() + ".fav", Boolean.toString(m.favorite));
 			for (Setting s : m.getSettings()) {
 				p.setProperty(m.getName() + ".s." + s.name(), Double.toString(s.num()));
 			}
 		}
 		try (OutputStream out = Files.newOutputStream(FILE)) {
-			p.store(out, "CART3R Client");
+			p.store(out, "HATO Client");
 		} catch (IOException ignored) {
 		}
 	}

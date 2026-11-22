@@ -14,6 +14,7 @@ public final class Theme {
 	public static final Setting FONT_CASE = Setting.options("Text case", 0, "Normal", "UPPER", "lower");
 	public static final Setting TEXT_SHADOW = Setting.toggle("Text shadow", false);
 	public static final Setting HUD_STYLE = Setting.options("HUD style", 0, "Solid", "Gradient", "Outline");
+	public static final Setting PRESET = Setting.options("Theme preset", 0, "Custom", "Obsidian Gold", "Crimson Steel", "Ocean", "Mint", "Sunset", "Rainbow Glass");
 	public static final Setting NOTIFY = Setting.toggle("Notifications", true);
 
 	public static final int TEXT = 0xFFEDEDF2;
@@ -119,7 +120,33 @@ public final class Theme {
 		return (float) (1.0 - inv * inv * inv);
 	}
 
+	private static int lastPreset = -1;
+
+	private static void applyPreset(int p) {
+		// accent, look, hud style, opacity, glow
+		double[][] t = {
+			{}, {8, 0, 2, 0.85, 0}, {0, 0, 0, 0.80, 0}, {5, 2, 1, 0.70, 0},
+			{2, 0, 1, 0.80, 0}, {4, 1, 1, 0.80, 1}, {7, 2, 2, 0.65, 0}
+		};
+		if (p <= 0 || p >= t.length) {
+			return;
+		}
+		ACCENT.setValue(t[p][0]);
+		STYLE.setValue(t[p][1]);
+		HUD_STYLE.setValue(t[p][2]);
+		HUD_OPACITY.setValue(t[p][3]);
+		GLOW.setValue(t[p][4]);
+		Config.save();
+	}
+
 	public static void beginFrame() {
+		int pr = (int) Math.round(PRESET.num());
+		if (lastPreset < 0) {
+			lastPreset = pr;
+		} else if (pr != lastPreset) {
+			lastPreset = pr;
+			applyPreset(pr);
+		}
 		long n = System.nanoTime();
 		dt = Math.min(0.1f, (n - last) / 1.0E9f);
 		last = n;

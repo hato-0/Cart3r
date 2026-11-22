@@ -5,6 +5,7 @@ import org.lwjgl.glfw.GLFW;
 public final class InterfaceModule extends Module {
 	public InterfaceModule() {
 		super("Interface", Category.CLIENT, "Menu look, animations and the menu key");
+		add(Theme.PRESET);
 		add(Theme.STYLE);
 		add(Theme.ACCENT);
 		add(Theme.FONT_STYLE);

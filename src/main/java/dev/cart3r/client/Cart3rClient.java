@@ -148,7 +148,7 @@ public class Cart3rClient implements ClientModInitializer {
 			}
 			if (!joined) {
 				joined = true;
-				Notify.push("HATO v10 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
+				Notify.push("HATO v12 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
 				ModuleManager.onJoin(mc);
 			}
 

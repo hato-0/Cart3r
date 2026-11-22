@@ -114,7 +114,8 @@ public class MenuScreen extends Screen {
 		List<Module> out = new ArrayList<>();
 		String q = query();
 		for (Module m : ModuleManager.MODULES) {
-			if (!q.isEmpty() ? m.getName().toLowerCase().contains(q) : m.getCategory() == selected) {
+			if (!q.isEmpty() ? m.getName().toLowerCase().contains(q)
+				: (selected == Module.Category.FAVS ? m.favorite : m.getCategory() == selected)) {
 				out.add(m);
 			}
 		}
@@ -273,7 +274,7 @@ public class MenuScreen extends Screen {
 		Gfx.card(g, px, py, px + PW, py + ph, 5, a(Theme.dim(accent, 0.55), 1), a(Theme.PANEL, Theme.panelAlpha()));
 		Txt.draw(g, f, "HATO", px + 12, py + 9, a(accent, 1), false);
 		Txt.draw(g, f, "CLIENT", px + 12 + Txt.width(f, "HATO") + 5, py + 9, a(Theme.MUTED, 1), false);
-		String ver = "v10.0";
+		String ver = "v12.0";
 		Txt.draw(g, f, ver, px + PW - 12 - Txt.width(f, ver), py + 9, a(Theme.MUTED, 1), false);
 		g.fill(px + 10, py + 27, px + PW - 10, py + 28, a(Theme.LINE, 1));
 		float sh = (System.currentTimeMillis() % 2600L) / 2600f;
@@ -350,6 +351,9 @@ public class MenuScreen extends Screen {
 			}
 			int tc = Theme.mix(0xFFB4B4C0, Theme.TEXT, Math.max(m.guiAnim, m.guiHover * 0.6f));
 			Txt.draw(g, f, m.getName(), x + 11, y + 6, a(tc, k), false);
+			if (m.favorite) {
+				Txt.draw(g, f, "*", x + 14 + Txt.width(f, m.getName()), y + 6, a(0xFFFFC53D, k), false);
+			}
 
 			boolean isIface = m instanceof InterfaceModule;
 			int gx = x + lw - 18;
@@ -372,6 +376,11 @@ public class MenuScreen extends Screen {
 				hoverDesc = m.getDescription();
 				if (rClick) {
 					picked = m;
+					if (Input.shift()) {
+						m.favorite = !m.favorite;
+						Config.save();
+						Notify.push(m.getName() + (m.favorite ? " added to favorites" : " removed from favorites"), 0xFFFFC53D);
+					}
 				}
 				if (lClick) {
 					picked = m;
@@ -602,7 +611,7 @@ public class MenuScreen extends Screen {
 			closeRequested = true;
 		}
 
-		String hint = hoverDesc.isEmpty() ? "L: toggle  R: settings" : hoverDesc;
+		String hint = hoverDesc.isEmpty() ? "Shift+R: favorite" : hoverDesc;
 		int avail = (cx - 8) - (ebx + ew + 8);
 		while (hint.length() > 3 && Txt.width(f, hint) > avail) {
 			hint = hint.substring(0, hint.length() - 1);

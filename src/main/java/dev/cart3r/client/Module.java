@@ -8,6 +8,7 @@ import java.util.List;
 
 public abstract class Module {
 	public enum Category {
+		FAVS("Favs"),
 		MOVEMENT("Move"),
 		RENDER("Render"),
 		WORLD("World"),
@@ -33,6 +34,7 @@ public abstract class Module {
 	private int key = 0;
 	private boolean keyDown = false;
 
+	public boolean favorite;
 	public float guiAnim;
 	public float guiHover;
 	public float hudAnim;
