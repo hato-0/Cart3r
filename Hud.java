@@ -565,6 +565,11 @@ public final class Hud {
 			drawNotes(g, mc);
 			HudLayout.end(g);
 		}
+		if (ModuleManager.STATS.isEnabled()) {
+			HudLayout.begin(g, HudLayout.STATS);
+			drawStats(g, mc);
+			HudLayout.end(g);
+		}
 		Notify.draw(g, mc.font);
 		Intro.draw(g, mc);
 	}
@@ -1282,6 +1287,57 @@ public final class Hud {
 		if (st == 1) {
 			g.fillGradient(x1 + 1, y1 + 1, x2 - 1, y2 - 1, Theme.alpha(Theme.accent(), 0.28), 0x00000000);
 		}
+	}
+
+	private static final java.util.ArrayDeque<Long> CLICKS = new java.util.ArrayDeque<>();
+	private static boolean cpsWas;
+
+	private static void drawStats(GuiGraphics g, Minecraft mc) {
+		var f = mc.font;
+		long now = System.currentTimeMillis();
+		boolean l = Input.left();
+		if (l && !cpsWas) {
+			CLICKS.addLast(now);
+		}
+		cpsWas = l;
+		while (!CLICKS.isEmpty() && now - CLICKS.peekFirst() > 1000L) {
+			CLICKS.removeFirst();
+		}
+		java.util.List<String> lines = new java.util.ArrayList<>();
+		Module m = ModuleManager.STATS;
+		if (m.getBool("CPS")) {
+			lines.add("CPS  " + CLICKS.size());
+		}
+		if (m.getBool("Speed")) {
+			var d = mc.player.getDeltaMovement();
+			lines.add(String.format("Speed  %.1f b/s", Math.sqrt(d.x * d.x + d.z * d.z) * 20.0));
+		}
+		if (m.getBool("Ping") && mc.getConnection() != null) {
+			PlayerInfo pi = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+			if (pi != null) {
+				lines.add("Ping  " + pi.getLatency() + " ms");
+			}
+		}
+		if (m.getBool("Clock")) {
+			lines.add(java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+		}
+		if (lines.isEmpty()) {
+			return;
+		}
+		int w = 60;
+		for (String s : lines) {
+			w = Math.max(w, Txt.width(f, s) + 14);
+		}
+		int h = 8 + lines.size() * 11;
+		int x = g.guiWidth() - w - 6;
+		int y = g.guiHeight() / 2 - 40;
+		Gfx.card(g, x, y, x + w, y + h, 3, Theme.alpha(Theme.dim(Theme.accent(), 0.5), 0.9), Theme.hudBg());
+		int ty = y + 5;
+		for (String s : lines) {
+			Txt.draw(g, f, s, x + 7, ty, Theme.TEXT, false);
+			ty += 11;
+		}
+		HudLayout.report(HudLayout.STATS, x, y, x + w, y + h);
 	}
 
 	private static void drawNotes(GuiGraphics g, Minecraft mc) {

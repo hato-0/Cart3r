@@ -20,8 +20,9 @@ public final class HudLayout {
 	public static final int COUNTERS = 9;
 	public static final int FRAME = 10;
 	public static final int NOTES = 11;
+	public static final int STATS = 12;
 	public static final String[] NAMES = {
-		"Info", "Module list", "Keystrokes", "Compass", "Effects", "Radar", "Armor", "Spotify", "Notifications", "Counters", "Frame graph", "Notes"
+		"Info", "Module list", "Keystrokes", "Compass", "Effects", "Radar", "Armor", "Spotify", "Notifications", "Counters", "Frame graph", "Notes", "Stats"
 	};
 
 	private static final int N = NAMES.length;

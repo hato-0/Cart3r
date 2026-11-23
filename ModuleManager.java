@@ -1157,6 +1157,25 @@ public final class ModuleManager {
 				setEnabled(false);
 			}
 		},
+		new Module("StatsHUD", Category.HUD, "CPS, speed, ping and clock in one card") {
+			private final Setting cps = toggle("CPS", true);
+			private final Setting speed = toggle("Speed", true);
+			private final Setting ping = toggle("Ping", true);
+			private final Setting clock = toggle("Clock", true);
+		},
+		new Module("FallAlert", Category.UTILITY, "Warn when you fall fast and will take damage") {
+			private boolean warned;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				double vy = mc.player.getDeltaMovement().y;
+				boolean danger = vy < -0.9 && !mc.player.isFallFlying() && !mc.player.getAbilities().flying;
+				if (danger && !warned) {
+					Notify.push("Falling fast!", 0xFFFF3B5C);
+				}
+				warned = danger;
+			}
+		},
 		INTERFACE
 	);
 
@@ -1176,6 +1195,7 @@ public final class ModuleManager {
 	public static final Module BREAD = get("Breadcrumbs");
 	public static final Module COMPASS = get("Compass");
 	public static final Module NOTES = get("Notes");
+	public static final Module STATS = get("StatsHUD");
 	public static final Module SMOOTHZOOM = get("SmoothZoom");
 	public static final Module EFFECTS = get("Effects");
 	public static final Module BLOCKOV = get("BlockOverlay");

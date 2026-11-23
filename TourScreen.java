@@ -34,6 +34,7 @@ public class TourScreen extends Screen {
 			{"Find things fast", "Use the search box at the top of the menu. Shift + right-click on a cheat adds it to your Favs tab."},
 			{"Make it yours", "Under Client > Interface you can change themes, colors, fonts and the HUD style. Edit HUD lets you drag and resize every HUD element."},
 			{"Profiles", "Save your active cheats as a profile, give it a key, and share it with a code. Export all copies everything to your clipboard."},
+			{"What is new in v16", "New: Stats HUD (CPS, speed, ping, clock), Notes, Freelook, SmoothZoom, alerts for hunger, air, falling and a full inventory, plus a safety net that turns off a crashing cheat."},
 			{"Commands", "/hato opens the menu. /hato hud edits the HUD. /hato note add <text> adds a note. /hato tour shows this tour again."}
 		};
 	}

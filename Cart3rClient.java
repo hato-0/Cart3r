@@ -184,7 +184,7 @@ public class Cart3rClient implements ClientModInitializer {
 				if (Theme.INTRO.bool()) {
 					Intro.trigger();
 				} else {
-					Notify.push("HATO v15 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
+					Notify.push("HATO v16 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
 				}
 				ModuleManager.onJoin(mc);
 			}
