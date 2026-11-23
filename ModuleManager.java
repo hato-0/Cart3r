@@ -1085,6 +1085,78 @@ public final class ModuleManager {
 				Smooth.lookStop(mc);
 			}
 		},
+		new Module("DeathNote", Category.UTILITY, "Saves your death coordinates as a note") {
+			private boolean dead;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				boolean d = mc.player.isDeadOrDying();
+				if (d && !dead) {
+					String where = "Death " + (int) mc.player.getX() + " " + (int) mc.player.getY() + " " + (int) mc.player.getZ();
+					Notes.add(where);
+					Notify.push(where, 0xFFFF3B5C);
+				}
+				dead = d;
+			}
+		},
+		new Module("HungerAlert", Category.UTILITY, "Warn when your food bar is low") {
+			private final Setting level = num("Food level", 2, 14, 6, 1);
+			private boolean low;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.tickCount % 20 != 0) {
+					return;
+				}
+				boolean l = mc.player.getFoodData().getFoodLevel() <= (int) level.num();
+				if (l && !low) {
+					Notify.push("Hungry - eat something", 0xFFFFC53D);
+				}
+				low = l;
+			}
+		},
+		new Module("AirAlert", Category.UTILITY, "Warn when you are running out of air") {
+			private boolean low;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				boolean l = mc.player.getAirSupply() < mc.player.getMaxAirSupply() / 3;
+				if (l && !low) {
+					Notify.push("Low air - surface now", 0xFF3D8BFF);
+				}
+				low = l;
+			}
+		},
+		new Module("BreakReminder", Category.UTILITY, "Reminds you to take a break") {
+			private final Setting mins = num("Minutes", 10, 120, 45, 5);
+			private long next;
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				next = System.currentTimeMillis() + (long) (mins.num() * 60000L);
+			}
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (next == 0L) {
+					next = System.currentTimeMillis() + (long) (mins.num() * 60000L);
+				}
+				if (System.currentTimeMillis() >= next) {
+					Notify.push("Time for a short break!", Theme.accent());
+					next = System.currentTimeMillis() + (long) (mins.num() * 60000L);
+				}
+			}
+		},
+		new Module("CoordsNote", Category.UTILITY, "Saves your current position as a note when enabled") {
+			@Override
+			public void onEnable(Minecraft mc) {
+				if (mc.player != null) {
+					Notes.add("Pos " + (int) mc.player.getX() + " " + (int) mc.player.getY() + " " + (int) mc.player.getZ());
+					Notify.push("Position saved to notes", Theme.accent());
+				}
+				setEnabled(false);
+			}
+		},
 		INTERFACE
 	);
 
@@ -1171,7 +1243,12 @@ public final class ModuleManager {
 		}
 		for (Module m : MODULES) {
 			if (m != INTERFACE && m.isEnabled()) {
-				m.onTick(mc);
+				try {
+					m.onTick(mc);
+				} catch (RuntimeException ex) {
+					m.setEnabled(false);
+					Notify.push(m.getName() + " crashed and was turned off", 0xFFFF3B5C);
+				}
 			}
 		}
 	}

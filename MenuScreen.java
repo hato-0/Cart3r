@@ -276,7 +276,7 @@ public class MenuScreen extends Screen {
 		Logo.draw(g, px + 10, py + 6, 16, alpha);
 		Txt.draw(g, f, "HATO", px + 32, py + 9, a(accent, 1), false);
 		Txt.draw(g, f, "CLIENT", px + 32 + Txt.width(f, "HATO") + 5, py + 9, a(Theme.MUTED, 1), false);
-		String ver = "v14.0";
+		String ver = "v15.0";
 		Txt.draw(g, f, ver, px + PW - 12 - Txt.width(f, ver), py + 9, a(Theme.MUTED, 1), false);
 		g.fill(px + 10, py + 27, px + PW - 10, py + 28, a(Theme.LINE, 1));
 		float sh = (System.currentTimeMillis() % 2600L) / 2600f;
