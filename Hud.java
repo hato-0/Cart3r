@@ -100,7 +100,7 @@ public final class Hud {
 	}
 
 	private static boolean skip(Minecraft mc, Entity e) {
-		return e == mc.getCameraEntity() || (e == mc.player && !Freecam.active());
+		return e == mc.getCameraEntity() || (e == mc.player && !Freecam.active() && !Smooth.lookActive());
 	}
 
 	public static void tick(Minecraft mc) {
@@ -445,6 +445,7 @@ public final class Hud {
 		Theme.beginFrame();
 		Minecraft mc = Minecraft.getInstance();
 		Freecam.frame(mc);
+		Smooth.frame(mc, pt);
 		if (mc.player == null || mc.level == null || mc.options.hideGui) {
 			return;
 		}

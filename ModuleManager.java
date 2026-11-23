@@ -1065,6 +1065,26 @@ public final class ModuleManager {
 				}
 			}
 		},
+		new Module("SmoothZoom", Category.VISUAL, "Smooth animated zoom (use this instead of Zoom)") {
+			private final Setting fov = num("FOV", 10, 60, 30, 5);
+			private final Setting smooth = num("Smoothness", 3, 20, 10, 1);
+		},
+		new Module("Freelook", Category.VISUAL, "Look around freely while your player keeps facing forward") {
+			@Override
+			public boolean persistent() {
+				return false;
+			}
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				Smooth.lookStart(mc);
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				Smooth.lookStop(mc);
+			}
+		},
 		INTERFACE
 	);
 
@@ -1084,6 +1104,7 @@ public final class ModuleManager {
 	public static final Module BREAD = get("Breadcrumbs");
 	public static final Module COMPASS = get("Compass");
 	public static final Module NOTES = get("Notes");
+	public static final Module SMOOTHZOOM = get("SmoothZoom");
 	public static final Module EFFECTS = get("Effects");
 	public static final Module BLOCKOV = get("BlockOverlay");
 	public static final Module JUMPC = get("JumpCircles");
@@ -1136,6 +1157,7 @@ public final class ModuleManager {
 
 	public static void onLeave() {
 		Freecam.reset();
+		Smooth.reset();
 		for (Module m : MODULES) {
 			if (m != INTERFACE && !m.persistent()) {
 				m.setEnabled(false);
