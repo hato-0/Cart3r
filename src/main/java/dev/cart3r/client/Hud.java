@@ -466,8 +466,11 @@ public final class Hud {
 			|| ModuleManager.BREAD.isEnabled() || ModuleManager.BLOCKOV.isEnabled()
 			|| ModuleManager.JUMPC.isEnabled() || ModuleManager.TARGET.isEnabled()
 			|| ModuleManager.CHUNKS.isEnabled() || ModuleManager.ITEMLAB.isEnabled()
-			|| ModuleManager.DMG.isEnabled();
+			|| ModuleManager.DMG.isEnabled() || ModuleManager.TRAJ.isEnabled();
 		if (needs && Projector.begin(mc, g, pt)) {
+			if (ModuleManager.TRAJ.isEnabled()) {
+				drawTraj(g, mc);
+			}
 			if (ModuleManager.STORAGE.isEnabled()) {
 				drawStorage(g, mc);
 			}
@@ -563,6 +566,11 @@ public final class Hud {
 		if (ModuleManager.NOTES.isEnabled() && !Notes.LIST.isEmpty()) {
 			HudLayout.begin(g, HudLayout.NOTES);
 			drawNotes(g, mc);
+			HudLayout.end(g);
+		}
+		if (ModuleManager.NEARBY.isEnabled()) {
+			HudLayout.begin(g, HudLayout.NEARBY);
+			drawNearby(g, mc);
 			HudLayout.end(g);
 		}
 		if (ModuleManager.BLOCKINFO.isEnabled()) {
@@ -1305,7 +1313,110 @@ public final class Hud {
 	}
 
 	private static final java.util.ArrayDeque<Long> CLICKS = new java.util.ArrayDeque<>();
-	private static boolean cpsWas;
+	private static boolean statsCpsWas;
+
+	private static final java.util.List<Entity> NEAR = new java.util.ArrayList<>();
+	private static long nearAt;
+
+	private static void drawTraj(GuiGraphics g, Minecraft mc) {
+		var p = mc.player;
+		var held = p.getMainHandItem();
+		double speed;
+		double grav;
+		double drag = 0.99;
+		if (held.is(net.minecraft.world.item.Items.BOW) && p.isUsingItem()) {
+			float t = p.getTicksUsingItem() / 20.0f;
+			float pw = Math.min(1.0f, (t * t + t * 2.0f) / 3.0f);
+			if (pw < 0.1f) {
+				return;
+			}
+			speed = pw * 3.0;
+			grav = 0.05;
+		} else if (held.is(net.minecraft.world.item.Items.ENDER_PEARL) || held.is(net.minecraft.world.item.Items.SNOWBALL)
+			|| held.is(net.minecraft.world.item.Items.EGG)) {
+			speed = 1.5;
+			grav = 0.03;
+		} else {
+			return;
+		}
+		Vec3 pos = p.getEyePosition(1.0f).add(0, -0.1, 0);
+		Vec3 vel = p.getViewVector(1.0f).scale(speed);
+		double[] o = new double[2];
+		int col = Theme.accent();
+		boolean landed = false;
+		for (int i = 0; i < 140; i++) {
+			pos = pos.add(vel);
+			vel = new Vec3(vel.x * drag, vel.y * drag - grav, vel.z * drag);
+			net.minecraft.core.BlockPos bp = net.minecraft.core.BlockPos.containing(pos);
+			if (!mc.level.getBlockState(bp).getCollisionShape(mc.level, bp).isEmpty()) {
+				landed = true;
+				break;
+			}
+			if (pos.y < -128) {
+				break;
+			}
+			if (i % 2 == 0 && Projector.project(pos.x, pos.y, pos.z, o)) {
+				int x = (int) o[0];
+				int y = (int) o[1];
+				g.fill(x, y, x + 2, y + 2, Theme.alpha(col, 0.85));
+			}
+		}
+		if (landed && Projector.project(pos.x, pos.y, pos.z, o)) {
+			int x = (int) o[0];
+			int y = (int) o[1];
+			g.fill(x - 4, y - 4, x + 4, y - 3, col);
+			g.fill(x - 4, y + 3, x + 4, y + 4, col);
+			g.fill(x - 4, y - 4, x - 3, y + 4, col);
+			g.fill(x + 3, y - 4, x + 4, y + 4, col);
+			Txt.draw(g, mc.font, (int) p.position().distanceTo(pos) + "m", x + 7, y - 4, Theme.TEXT, false);
+		}
+	}
+
+	private static void drawNearby(GuiGraphics g, Minecraft mc) {
+		Module m = ModuleManager.NEARBY;
+		long now = System.currentTimeMillis();
+		if (now - nearAt > 250L) {
+			nearAt = now;
+			NEAR.clear();
+			double r2 = m.getNum("Range") * m.getNum("Range");
+			for (Entity e : mc.level.entitiesForRendering()) {
+				if (skip(mc, e) || !Targets.allowed(m, Targets.kind(e)) || mc.player.distanceToSqr(e) > r2) {
+					continue;
+				}
+				NEAR.add(e);
+			}
+			NEAR.sort(java.util.Comparator.comparingDouble(e -> mc.player.distanceToSqr(e)));
+		}
+		var f = mc.font;
+		int n = Math.min(NEAR.size(), (int) m.getNum("Max"));
+		int w = 100;
+		java.util.List<String> lines = new java.util.ArrayList<>();
+		for (int i = 0; i < n; i++) {
+			Entity e = NEAR.get(i);
+			if (e.isRemoved()) {
+				continue;
+			}
+			String s = e.getName().getString() + "  " + (int) mc.player.distanceTo(e) + "m";
+			lines.add(s);
+			w = Math.max(w, Txt.width(f, s) + 20);
+		}
+		int h = 18 + Math.max(1, lines.size()) * 11;
+		int x = g.guiWidth() - w - 6;
+		int y = g.guiHeight() / 2 + 40;
+		Gfx.card(g, x, y, x + w, y + h, 3, Theme.alpha(Theme.dim(Theme.accent(), 0.5), 0.9), Theme.hudBg());
+		Txt.draw(g, f, "NEARBY", x + 7, y + 4, Theme.accent(), false);
+		int ty = y + 16;
+		if (lines.isEmpty()) {
+			Txt.draw(g, f, "nobody around", x + 7, ty, Theme.MUTED, false);
+		}
+		for (int i = 0; i < lines.size() && i < n; i++) {
+			Entity e = NEAR.get(i);
+			Gfx.circle(g, x + 9, ty + 4, 2, Targets.color(Targets.kind(e)));
+			Txt.draw(g, f, lines.get(i), x + 15, ty, Theme.TEXT, false);
+			ty += 11;
+		}
+		HudLayout.report(HudLayout.NEARBY, x, y, x + w, y + h);
+	}
 
 	private static void drawBlockInfo(GuiGraphics g, Minecraft mc) {
 		String name = "-";
@@ -1324,7 +1435,7 @@ public final class Hud {
 
 	private static void drawTargetHud(GuiGraphics g, Minecraft mc) {
 		int w = 110;
-		int h = 26;
+		int h = 40;
 		int x = (g.guiWidth() - w) / 2;
 		int y = g.guiHeight() / 2 + 30;
 		HudLayout.report(HudLayout.TARGETHUD, x, y, x + w, y + h);
@@ -1335,6 +1446,7 @@ public final class Hud {
 		Gfx.card(g, x, y, x + w, y + h, 3, Theme.alpha(Theme.dim(Theme.accent(), 0.5), 0.9), Theme.hudBg());
 		String nm = le.getName().getString();
 		Txt.draw(g, f, nm, x + 6, y + 4, Theme.TEXT, false);
+		Txt.draw(g, f, String.format("%.1fm", mc.player.distanceTo(le)), x + 6, y + 30, Theme.MUTED, false);
 		float hp = le.getHealth();
 		float max = Math.max(1f, le.getMaxHealth());
 		String hs = String.format("%.1f", hp);
@@ -1367,10 +1479,10 @@ public final class Hud {
 		var f = mc.font;
 		long now = System.currentTimeMillis();
 		boolean l = Input.left();
-		if (l && !cpsWas) {
+		if (l && !statsCpsWas) {
 			CLICKS.addLast(now);
 		}
-		cpsWas = l;
+		statsCpsWas = l;
 		while (!CLICKS.isEmpty() && now - CLICKS.peekFirst() > 1000L) {
 			CLICKS.removeFirst();
 		}
