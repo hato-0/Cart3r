@@ -1,7 +1,10 @@
 package dev.cart3r.client;
 
 public final class Theme {
-	public static final Setting ACCENT = Setting.options("Accent", 0, "Crimson", "Blue", "Green", "Purple", "Orange", "Cyan", "Pink", "Rainbow", "Gold", "Ice", "Lime");
+	public static final Setting ACCENT = Setting.options("Accent", 0, "Crimson", "Blue", "Green", "Purple", "Orange", "Cyan", "Pink", "Rainbow", "Gold", "Ice", "Lime", "Custom");
+	public static final Setting ACC_R = Setting.number("Custom red", 0, 255, 255, 5);
+	public static final Setting ACC_G = Setting.number("Custom green", 0, 255, 60, 5);
+	public static final Setting ACC_B = Setting.number("Custom blue", 0, 255, 120, 5);
 	public static final Setting ANIMATIONS = Setting.toggle("Animations", true);
 	public static final Setting ANIM_MS = Setting.number("Anim ms", 100, 600, 250, 50);
 	public static final Setting OPACITY = Setting.number("Panel opacity", 0.5, 1.0, 0.94, 0.02);
@@ -18,7 +21,7 @@ public final class Theme {
 	public static final Setting NOTIFY = Setting.toggle("Notifications", true);
 	public static final Setting SOUNDS = Setting.toggle("Toggle sounds", true);
 	public static final Setting INTRO = Setting.toggle("Startup intro", true);
-	private static final int[] CAT_COLORS = {0xFFFFC53D, 0xFF3D8BFF, 0xFFFF3B5C, 0xFF2DD36F, 0xFFA855F7, 0xFFFF9F1C, 0xFF22D3EE, 0xFFFF4FA3, 0xFFB5F23D, 0xFFB4B4C0};
+	private static final int[] CAT_COLORS = {0xFFB4B4C0, 0xFFFFC53D, 0xFF7CFFB2, 0xFF3D8BFF, 0xFFFF3B5C, 0xFF2DD36F, 0xFFA855F7, 0xFFFF9F1C, 0xFF22D3EE, 0xFFFF4FA3, 0xFFB5F23D, 0xFFB4B4C0};
 
 	public static int catColor(Module.Category c) {
 		return CAT_COLORS[c.ordinal()];
@@ -52,6 +55,9 @@ public final class Theme {
 	}
 
 	public static int colorOf(int index) {
+		if (index == 11) {
+			return 0xFF000000 | ((int) ACC_R.num() << 16) | ((int) ACC_G.num() << 8) | (int) ACC_B.num();
+		}
 		int i = Math.max(0, Math.min(COLORS.length - 1, index));
 		return i == 7 ? rainbow() : COLORS[i];
 	}

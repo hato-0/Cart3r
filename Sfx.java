@@ -8,6 +8,13 @@ public final class Sfx {
 	private Sfx() {
 	}
 
+	public static void tick() {
+		if (!Theme.SOUNDS.bool() || Notify.mute) {
+			return;
+		}
+		Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.8f));
+	}
+
 	public static void click(boolean on) {
 		if (!Theme.SOUNDS.bool() || Notify.mute) {
 			return;

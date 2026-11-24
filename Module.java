@@ -8,7 +8,9 @@ import java.util.List;
 
 public abstract class Module {
 	public enum Category {
+		HOME("Home"),
 		FAVS("Favs"),
+		ACTIVE("On"),
 		MOVEMENT("Move"),
 		RENDER("Render"),
 		WORLD("World"),
@@ -38,6 +40,7 @@ public abstract class Module {
 	public float guiAnim;
 	public float guiHover;
 	public float hudAnim;
+	public long toggledAt;
 
 	protected Module(String name, Category category, String description) {
 		this.name = name;
@@ -132,6 +135,7 @@ public abstract class Module {
 			onDisable(mc);
 		}
 		Config.save();
+		toggledAt = System.currentTimeMillis();
 		Notify.module(name, enabled);
 		Sfx.click(enabled);
 	}

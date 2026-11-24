@@ -99,6 +99,20 @@ public class Cart3rClient implements ClientModInitializer {
 							return 1;
 						})))
 				.then(ClientCommandManager.literal("wp")
+					.then(ClientCommandManager.literal("tp")
+						.then(ClientCommandManager.argument("name", StringArgumentType.word())
+							.executes(ctx -> {
+								String n = StringArgumentType.getString(ctx, "name");
+								for (Waypoints.Point p : Waypoints.LIST) {
+									if (p.name().equalsIgnoreCase(n)) {
+										CmdModule.send(Minecraft.getInstance(), String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", p.x(), p.y(), p.z()));
+										ctx.getSource().sendFeedback(Component.literal("Teleporting to " + p.name() + " (needs cheats)"));
+										return 1;
+									}
+								}
+								ctx.getSource().sendFeedback(Component.literal("Not found: " + n));
+								return 1;
+							})))
 					.then(ClientCommandManager.literal("add")
 						.then(ClientCommandManager.argument("name", StringArgumentType.word())
 							.executes(ctx -> {
@@ -184,7 +198,7 @@ public class Cart3rClient implements ClientModInitializer {
 				if (Theme.INTRO.bool()) {
 					Intro.trigger();
 				} else {
-					Notify.push("HATO v16 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
+					Notify.push("HATO v21 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
 				}
 				ModuleManager.onJoin(mc);
 			}

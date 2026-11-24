@@ -8,6 +8,9 @@ public final class InterfaceModule extends Module {
 		add(Theme.PRESET);
 		add(Theme.STYLE);
 		add(Theme.ACCENT);
+		add(Theme.ACC_R);
+		add(Theme.ACC_G);
+		add(Theme.ACC_B);
 		add(Theme.FONT_STYLE);
 		add(Theme.FONT_CASE);
 		add(Theme.TEXT_SHADOW);

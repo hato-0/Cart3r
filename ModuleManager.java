@@ -562,7 +562,7 @@ public final class ModuleManager {
 				}
 			}
 		},
-		new Module("Reach", Category.PLAYER, "Hit mobs from further away (never players)") {
+		new Module("Reach", Category.PLAYER, "Hit mobs from further away (never players). Above ~4 blocks the server must allow it") {
 			private final Setting distance = num("Distance", 3.5, 6.0, 4.5, 0.1);
 			private boolean attackWas;
 
@@ -1094,6 +1094,7 @@ public final class ModuleManager {
 				if (d && !dead) {
 					String where = "Death " + (int) mc.player.getX() + " " + (int) mc.player.getY() + " " + (int) mc.player.getZ();
 					Notes.add(where);
+					Waypoints.add(mc, "Death");
 					Notify.push(where, 0xFFFF3B5C);
 				}
 				dead = d;
@@ -1176,6 +1177,174 @@ public final class ModuleManager {
 				warned = danger;
 			}
 		},
+		new Module("TargetHUD", Category.HUD, "Name and health of the mob or player you look at") {
+		},
+		new Module("InventoryHUD", Category.HUD, "Show your inventory on screen") {
+		},
+		new Module("BlockInfo", Category.HUD, "Name of the block you are looking at") {
+		},
+		new Module("AirJump", Category.MOVEMENT, "Jump again while in the air") {
+			private final Setting jumps = num("Extra jumps", 1, 5, 1, 1);
+			private boolean was;
+			private int used;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				boolean j = mc.options.keyJump.isDown();
+				boolean rising = j && !was;
+				was = j;
+				if (mc.player.onGround()) {
+					used = 0;
+				} else if (rising && used < (int) jumps.num() && mc.screen == null && !mc.player.getAbilities().flying) {
+					Vec3 v = mc.player.getDeltaMovement();
+					mc.player.setDeltaMovement(v.x, 0.42, v.z);
+					used++;
+				}
+			}
+		},
+		new Module("AquaSpeed", Category.MOVEMENT, "Swim faster") {
+			private final Setting boost = num("Boost", 0.02, 0.3, 0.1, 0.02);
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (!mc.player.isInWater()) {
+					return;
+				}
+				Vec3 v = mc.player.getDeltaMovement();
+				double h = Math.sqrt(v.x * v.x + v.z * v.z);
+				if (h > 0.02 && h < 0.45) {
+					double k = 1.0 + boost.num();
+					mc.player.setDeltaMovement(v.x * k, v.y, v.z * k);
+				}
+			}
+		},
+		new Module("NearbyList", Category.HUD, "List of the closest players and mobs with distance") {
+			private final Setting players = toggle("Players", true);
+			private final Setting monsters = toggle("Monsters", true);
+			private final Setting passive = toggle("Passive", false);
+			private final Setting items = toggle("Items", false);
+			private final Setting max = num("Max", 3, 12, 6, 1);
+			private final Setting range = num("Range", 8, 64, 32, 4);
+		},
+		new Module("TotemAlert", Category.UTILITY, "Tell you when a totem was used up") {
+			private int last = -1;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.tickCount % 5 != 0) {
+					return;
+				}
+				int n = 0;
+				var inv = mc.player.getInventory();
+				for (int i = 0; i < inv.getContainerSize(); i++) {
+					ItemStack s = inv.getItem(i);
+					if (s.is(Items.TOTEM_OF_UNDYING)) {
+						n += s.getCount();
+					}
+				}
+				if (last >= 0 && n < last && !mc.player.isDeadOrDying()) {
+					Notify.push("Totem used - " + n + " left", 0xFFFFC53D);
+				}
+				last = n;
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				last = -1;
+			}
+		},
+		new Module("DarkAlert", Category.UTILITY, "Warn when it is dark enough for mobs to spawn") {
+			private final Setting light = num("Light level", 0, 15, 7, 1);
+			private boolean dark;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.tickCount % 20 != 0) {
+					return;
+				}
+				boolean d = mc.level.getMaxLocalRawBrightness(mc.player.blockPosition()) <= (int) light.num();
+				if (d && !dark) {
+					Notify.push("Dark here - mobs can spawn", 0xFFB5F23D);
+				}
+				dark = d;
+			}
+		},
+		new CmdModule("SetDay", Category.WORLD, "Solo: set the time to day (needs cheats)", "time set day", null),
+		new CmdModule("SetNight", Category.WORLD, "Solo: set the time to night (needs cheats)", "time set night", null),
+		new CmdModule("ClearWeather", Category.WORLD, "Solo: clear the weather (needs cheats)", "weather clear", null),
+		new CmdModule("FullHeal", Category.PLAYER, "Solo: refill health and food (needs cheats)",
+			"effect give @s minecraft:instant_health 1 10 true", null) {
+			@Override
+			public void onEnable(Minecraft mc) {
+				super.onEnable(mc);
+				CmdModule.send(mc, "effect give @s minecraft:saturation 1 20 true");
+			}
+		},
+		new CmdModule("Creative", Category.PLAYER, "Solo: switch to creative mode, off = survival (needs cheats)", "gamemode creative", "gamemode survival"),
+		new CmdModule("Spectate", Category.PLAYER, "Solo: spectator mode for scouting, off = survival (needs cheats)", "gamemode spectator", "gamemode survival"),
+		new CmdModule("KeepInventory", Category.PLAYER, "Solo: keep your items when you die (needs cheats)", "gamerule keepInventory true", "gamerule keepInventory false"),
+		new Module("Buffs", Category.PLAYER, "Solo: permanent potion effects while on (needs cheats)") {
+			private final Setting speed = toggle("Speed", true);
+			private final Setting haste = toggle("Haste", true);
+			private final Setting jump = toggle("Jump boost", false);
+			private final Setting regen = toggle("Regeneration", false);
+			private final Setting resist = toggle("Resistance", false);
+			private final Setting night = toggle("Night vision", true);
+			private final Setting fire = toggle("Fire resistance", false);
+			private final Setting water = toggle("Water breathing", false);
+
+			@Override
+			public boolean persistent() {
+				return false;
+			}
+
+			private void apply(Minecraft mc, boolean give) {
+				Object[][] all = {
+					{speed, "speed", 1}, {haste, "haste", 1}, {jump, "jump_boost", 1}, {regen, "regeneration", 0},
+					{resist, "resistance", 0}, {night, "night_vision", 0}, {fire, "fire_resistance", 0}, {water, "water_breathing", 0}
+				};
+				for (Object[] e : all) {
+					Setting st = (Setting) e[0];
+					if (!give) {
+						CmdModule.send(mc, "effect clear @s minecraft:" + e[1]);
+					} else if (st.bool()) {
+						CmdModule.send(mc, "effect give @s minecraft:" + e[1] + " infinite " + e[2] + " true");
+					}
+				}
+			}
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				apply(mc, true);
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				apply(mc, false);
+			}
+		},
+		new Module("Dash", Category.MOVEMENT, "Quick burst forward - bind a key to it") {
+			private final Setting power = num("Power", 0.5, 3.0, 1.2, 0.1);
+			private final Setting lift = num("Lift", 0.0, 0.6, 0.15, 0.05);
+
+			@Override
+			public boolean persistent() {
+				return false;
+			}
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				if (mc.player != null) {
+					Vec3 look = mc.player.getLookAngle();
+					double h = Math.max(0.001, Math.sqrt(look.x * look.x + look.z * look.z));
+					Vec3 v = mc.player.getDeltaMovement();
+					mc.player.setDeltaMovement(v.x + look.x / h * power.num(), Math.max(v.y, lift.num()), v.z + look.z / h * power.num());
+				}
+				setEnabled(false);
+			}
+		},
+		new Module("Trajectories", Category.RENDER, "Shows where arrows and thrown pearls, snowballs and eggs will land") {
+		},
 		INTERFACE
 	);
 
@@ -1196,6 +1365,11 @@ public final class ModuleManager {
 	public static final Module COMPASS = get("Compass");
 	public static final Module NOTES = get("Notes");
 	public static final Module STATS = get("StatsHUD");
+	public static final Module TARGETHUD = get("TargetHUD");
+	public static final Module INVHUD = get("InventoryHUD");
+	public static final Module BLOCKINFO = get("BlockInfo");
+	public static final Module NEARBY = get("NearbyList");
+	public static final Module TRAJ = get("Trajectories");
 	public static final Module SMOOTHZOOM = get("SmoothZoom");
 	public static final Module EFFECTS = get("Effects");
 	public static final Module BLOCKOV = get("BlockOverlay");

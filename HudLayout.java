@@ -21,8 +21,12 @@ public final class HudLayout {
 	public static final int FRAME = 10;
 	public static final int NOTES = 11;
 	public static final int STATS = 12;
+	public static final int TARGETHUD = 13;
+	public static final int INVHUD = 14;
+	public static final int BLOCKINFO = 15;
+	public static final int NEARBY = 16;
 	public static final String[] NAMES = {
-		"Info", "Module list", "Keystrokes", "Compass", "Effects", "Radar", "Armor", "Spotify", "Notifications", "Counters", "Frame graph", "Notes", "Stats"
+		"Info", "Module list", "Keystrokes", "Compass", "Effects", "Radar", "Armor", "Spotify", "Notifications", "Counters", "Frame graph", "Notes", "Stats", "Target", "Inventory", "Block info", "Nearby"
 	};
 
 	private static final int N = NAMES.length;

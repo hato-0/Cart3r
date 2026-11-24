@@ -42,7 +42,7 @@ public final class Intro {
 		p.scale(2f, 2f);
 		Txt.draw(g, f, "HATO", 0, 0, Theme.alpha(accent, a), false);
 		p.popMatrix();
-		Txt.draw(g, f, "CLIENT  v16", x + 57, y + 31, Theme.alpha(Theme.MUTED, a), false);
+		Txt.draw(g, f, "CLIENT  v21", x + 57, y + 31, Theme.alpha(Theme.MUTED, a), false);
 		String hint = "Press " + Module.keyName(ModuleManager.INTERFACE.getKey()) + " to open the menu";
 		Txt.draw(g, f, hint, x + 57, y + 42, Theme.alpha(Theme.TEXT, a * 0.8), false);
 		int bar = (int) ((w - 20) * Math.min(1.0, t / (double) LIFE));
