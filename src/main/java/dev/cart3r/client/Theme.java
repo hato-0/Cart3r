@@ -16,6 +16,13 @@ public final class Theme {
 	public static final Setting HUD_STYLE = Setting.options("HUD style", 0, "Solid", "Gradient", "Outline");
 	public static final Setting PRESET = Setting.options("Theme preset", 0, "Custom", "Obsidian Gold", "Crimson Steel", "Ocean", "Mint", "Sunset", "Rainbow Glass");
 	public static final Setting NOTIFY = Setting.toggle("Notifications", true);
+	public static final Setting SOUNDS = Setting.toggle("Toggle sounds", true);
+	public static final Setting INTRO = Setting.toggle("Startup intro", true);
+	private static final int[] CAT_COLORS = {0xFFFFC53D, 0xFF3D8BFF, 0xFFFF3B5C, 0xFF2DD36F, 0xFFA855F7, 0xFFFF9F1C, 0xFF22D3EE, 0xFFFF4FA3, 0xFFB5F23D, 0xFFB4B4C0};
+
+	public static int catColor(Module.Category c) {
+		return CAT_COLORS[c.ordinal()];
+	}
 
 	public static final int TEXT = 0xFFEDEDF2;
 	public static final int MUTED = 0xFF8A8A98;

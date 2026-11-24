@@ -562,7 +562,7 @@ public final class ModuleManager {
 				}
 			}
 		},
-		new Module("Reach", Category.PLAYER, "Hit mobs from further away (never players)") {
+		new Module("Reach", Category.PLAYER, "Hit mobs from further away (never players). Above ~4 blocks the server must allow it") {
 			private final Setting distance = num("Distance", 3.5, 6.0, 4.5, 0.1);
 			private boolean attackWas;
 
@@ -1006,6 +1006,217 @@ public final class ModuleManager {
 				disableAll(mc);
 			}
 		},
+		new Module("Notes", Category.HUD, "Show your quick notes on screen (/hato note add <text>)") {
+		},
+		new Module("EffectAlert", Category.UTILITY, "Warn when a potion effect is about to run out") {
+			private final Setting secs = num("Seconds", 5, 30, 10, 1);
+			private final java.util.Set<String> warned = new java.util.HashSet<>();
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player == null || mc.player.tickCount % 10 != 0) {
+					return;
+				}
+				java.util.Set<String> now = new java.util.HashSet<>();
+				for (MobEffectInstance e : mc.player.getActiveEffects()) {
+					if (e.isInfiniteDuration()) {
+						continue;
+					}
+					String id = e.getEffect().value().getDescriptionId();
+					if (e.getDuration() <= secs.num() * 20) {
+						now.add(id);
+						if (warned.add(id)) {
+							Notify.push("Effect ending: " + e.getEffect().value().getDisplayName().getString(), 0xFFFFC53D);
+						}
+					}
+				}
+				warned.retainAll(now);
+			}
+		},
+		new Module("InventoryAlert", Category.UTILITY, "Tell you when your inventory is full") {
+			private boolean was;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player == null || mc.player.tickCount % 40 != 0) {
+					return;
+				}
+				boolean full = mc.player.getInventory().getFreeSlot() < 0;
+				if (full && !was) {
+					Notify.push("Inventory full", 0xFFFF3B5C);
+				}
+				was = full;
+			}
+		},
+		new Module("BiomeNotifier", Category.WORLD, "Notification when you enter a new biome") {
+			private String last = "";
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player == null || mc.level == null || mc.player.tickCount % 20 != 0) {
+					return;
+				}
+				String b = Hud.biomeName(mc);
+				if (!b.equals(last)) {
+					if (!last.isEmpty()) {
+						Notify.push("Biome: " + b, Theme.accent());
+					}
+					last = b;
+				}
+			}
+		},
+		new Module("SmoothZoom", Category.VISUAL, "Smooth animated zoom (use this instead of Zoom)") {
+			private final Setting fov = num("FOV", 10, 60, 30, 5);
+			private final Setting smooth = num("Smoothness", 3, 20, 10, 1);
+		},
+		new Module("Freelook", Category.VISUAL, "Look around freely while your player keeps facing forward") {
+			@Override
+			public boolean persistent() {
+				return false;
+			}
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				Smooth.lookStart(mc);
+			}
+
+			@Override
+			public void onDisable(Minecraft mc) {
+				Smooth.lookStop(mc);
+			}
+		},
+		new Module("DeathNote", Category.UTILITY, "Saves your death coordinates as a note") {
+			private boolean dead;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				boolean d = mc.player.isDeadOrDying();
+				if (d && !dead) {
+					String where = "Death " + (int) mc.player.getX() + " " + (int) mc.player.getY() + " " + (int) mc.player.getZ();
+					Notes.add(where);
+					Notify.push(where, 0xFFFF3B5C);
+				}
+				dead = d;
+			}
+		},
+		new Module("HungerAlert", Category.UTILITY, "Warn when your food bar is low") {
+			private final Setting level = num("Food level", 2, 14, 6, 1);
+			private boolean low;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (mc.player.tickCount % 20 != 0) {
+					return;
+				}
+				boolean l = mc.player.getFoodData().getFoodLevel() <= (int) level.num();
+				if (l && !low) {
+					Notify.push("Hungry - eat something", 0xFFFFC53D);
+				}
+				low = l;
+			}
+		},
+		new Module("AirAlert", Category.UTILITY, "Warn when you are running out of air") {
+			private boolean low;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				boolean l = mc.player.getAirSupply() < mc.player.getMaxAirSupply() / 3;
+				if (l && !low) {
+					Notify.push("Low air - surface now", 0xFF3D8BFF);
+				}
+				low = l;
+			}
+		},
+		new Module("BreakReminder", Category.UTILITY, "Reminds you to take a break") {
+			private final Setting mins = num("Minutes", 10, 120, 45, 5);
+			private long next;
+
+			@Override
+			public void onEnable(Minecraft mc) {
+				next = System.currentTimeMillis() + (long) (mins.num() * 60000L);
+			}
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (next == 0L) {
+					next = System.currentTimeMillis() + (long) (mins.num() * 60000L);
+				}
+				if (System.currentTimeMillis() >= next) {
+					Notify.push("Time for a short break!", Theme.accent());
+					next = System.currentTimeMillis() + (long) (mins.num() * 60000L);
+				}
+			}
+		},
+		new Module("CoordsNote", Category.UTILITY, "Saves your current position as a note when enabled") {
+			@Override
+			public void onEnable(Minecraft mc) {
+				if (mc.player != null) {
+					Notes.add("Pos " + (int) mc.player.getX() + " " + (int) mc.player.getY() + " " + (int) mc.player.getZ());
+					Notify.push("Position saved to notes", Theme.accent());
+				}
+				setEnabled(false);
+			}
+		},
+		new Module("StatsHUD", Category.HUD, "CPS, speed, ping and clock in one card") {
+			private final Setting cps = toggle("CPS", true);
+			private final Setting speed = toggle("Speed", true);
+			private final Setting ping = toggle("Ping", true);
+			private final Setting clock = toggle("Clock", true);
+		},
+		new Module("FallAlert", Category.UTILITY, "Warn when you fall fast and will take damage") {
+			private boolean warned;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				double vy = mc.player.getDeltaMovement().y;
+				boolean danger = vy < -0.9 && !mc.player.isFallFlying() && !mc.player.getAbilities().flying;
+				if (danger && !warned) {
+					Notify.push("Falling fast!", 0xFFFF3B5C);
+				}
+				warned = danger;
+			}
+		},
+		new Module("TargetHUD", Category.HUD, "Name and health of the mob or player you look at") {
+		},
+		new Module("InventoryHUD", Category.HUD, "Show your inventory on screen") {
+		},
+		new Module("BlockInfo", Category.HUD, "Name of the block you are looking at") {
+		},
+		new Module("AirJump", Category.MOVEMENT, "Jump again while in the air") {
+			private final Setting jumps = num("Extra jumps", 1, 5, 1, 1);
+			private boolean was;
+			private int used;
+
+			@Override
+			public void onTick(Minecraft mc) {
+				boolean j = mc.options.keyJump.isDown();
+				boolean rising = j && !was;
+				was = j;
+				if (mc.player.onGround()) {
+					used = 0;
+				} else if (rising && used < (int) jumps.num() && mc.screen == null && !mc.player.getAbilities().flying) {
+					Vec3 v = mc.player.getDeltaMovement();
+					mc.player.setDeltaMovement(v.x, 0.42, v.z);
+					used++;
+				}
+			}
+		},
+		new Module("AquaSpeed", Category.MOVEMENT, "Swim faster") {
+			private final Setting boost = num("Boost", 0.02, 0.3, 0.1, 0.02);
+
+			@Override
+			public void onTick(Minecraft mc) {
+				if (!mc.player.isInWater()) {
+					return;
+				}
+				Vec3 v = mc.player.getDeltaMovement();
+				double h = Math.sqrt(v.x * v.x + v.z * v.z);
+				if (h > 0.02 && h < 0.45) {
+					double k = 1.0 + boost.num();
+					mc.player.setDeltaMovement(v.x * k, v.y, v.z * k);
+				}
+			}
+		},
 		INTERFACE
 	);
 
@@ -1024,6 +1235,12 @@ public final class ModuleManager {
 	public static final Module KEYSTROKES = get("Keystrokes");
 	public static final Module BREAD = get("Breadcrumbs");
 	public static final Module COMPASS = get("Compass");
+	public static final Module NOTES = get("Notes");
+	public static final Module STATS = get("StatsHUD");
+	public static final Module TARGETHUD = get("TargetHUD");
+	public static final Module INVHUD = get("InventoryHUD");
+	public static final Module BLOCKINFO = get("BlockInfo");
+	public static final Module SMOOTHZOOM = get("SmoothZoom");
 	public static final Module EFFECTS = get("Effects");
 	public static final Module BLOCKOV = get("BlockOverlay");
 	public static final Module JUMPC = get("JumpCircles");
@@ -1076,6 +1293,7 @@ public final class ModuleManager {
 
 	public static void onLeave() {
 		Freecam.reset();
+		Smooth.reset();
 		for (Module m : MODULES) {
 			if (m != INTERFACE && !m.persistent()) {
 				m.setEnabled(false);
@@ -1089,7 +1307,12 @@ public final class ModuleManager {
 		}
 		for (Module m : MODULES) {
 			if (m != INTERFACE && m.isEnabled()) {
-				m.onTick(mc);
+				try {
+					m.onTick(mc);
+				} catch (RuntimeException ex) {
+					m.setEnabled(false);
+					Notify.push(m.getName() + " crashed and was turned off", 0xFFFF3B5C);
+				}
 			}
 		}
 	}

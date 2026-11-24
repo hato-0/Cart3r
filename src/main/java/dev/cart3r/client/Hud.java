@@ -100,7 +100,7 @@ public final class Hud {
 	}
 
 	private static boolean skip(Minecraft mc, Entity e) {
-		return e == mc.getCameraEntity() || (e == mc.player && !Freecam.active());
+		return e == mc.getCameraEntity() || (e == mc.player && !Freecam.active() && !Smooth.lookActive());
 	}
 
 	public static void tick(Minecraft mc) {
@@ -445,6 +445,7 @@ public final class Hud {
 		Theme.beginFrame();
 		Minecraft mc = Minecraft.getInstance();
 		Freecam.frame(mc);
+		Smooth.frame(mc, pt);
 		if (mc.player == null || mc.level == null || mc.options.hideGui) {
 			return;
 		}
@@ -559,7 +560,33 @@ public final class Hud {
 			drawEffects(g, mc);
 			HudLayout.end(g);
 		}
+		if (ModuleManager.NOTES.isEnabled() && !Notes.LIST.isEmpty()) {
+			HudLayout.begin(g, HudLayout.NOTES);
+			drawNotes(g, mc);
+			HudLayout.end(g);
+		}
+		if (ModuleManager.BLOCKINFO.isEnabled()) {
+			HudLayout.begin(g, HudLayout.BLOCKINFO);
+			drawBlockInfo(g, mc);
+			HudLayout.end(g);
+		}
+		if (ModuleManager.TARGETHUD.isEnabled()) {
+			HudLayout.begin(g, HudLayout.TARGETHUD);
+			drawTargetHud(g, mc);
+			HudLayout.end(g);
+		}
+		if (ModuleManager.INVHUD.isEnabled()) {
+			HudLayout.begin(g, HudLayout.INVHUD);
+			drawInvHud(g, mc);
+			HudLayout.end(g);
+		}
+		if (ModuleManager.STATS.isEnabled()) {
+			HudLayout.begin(g, HudLayout.STATS);
+			drawStats(g, mc);
+			HudLayout.end(g);
+		}
 		Notify.draw(g, mc.font);
+		Intro.draw(g, mc);
 	}
 
 	private static void outline(GuiGraphics g, int x1, int y1, int x2, int y2, int c) {
@@ -1277,7 +1304,133 @@ public final class Hud {
 		}
 	}
 
-	private static String biomeName(Minecraft mc) {
+	private static final java.util.ArrayDeque<Long> CLICKS = new java.util.ArrayDeque<>();
+	private static boolean cpsWas;
+
+	private static void drawBlockInfo(GuiGraphics g, Minecraft mc) {
+		String name = "-";
+		if (mc.hitResult instanceof BlockHitResult bh && bh.getType() == HitResult.Type.BLOCK) {
+			name = mc.level.getBlockState(bh.getBlockPos()).getBlock().getName().getString();
+		}
+		var f = mc.font;
+		int w = Math.max(70, Txt.width(f, name) + 16);
+		int h = 18;
+		int x = (g.guiWidth() - w) / 2;
+		int y = 34;
+		Gfx.card(g, x, y, x + w, y + h, 3, Theme.alpha(Theme.dim(Theme.accent(), 0.5), 0.9), Theme.hudBg());
+		Txt.draw(g, f, name, x + (w - Txt.width(f, name)) / 2, y + 5, Theme.TEXT, false);
+		HudLayout.report(HudLayout.BLOCKINFO, x, y, x + w, y + h);
+	}
+
+	private static void drawTargetHud(GuiGraphics g, Minecraft mc) {
+		int w = 110;
+		int h = 26;
+		int x = (g.guiWidth() - w) / 2;
+		int y = g.guiHeight() / 2 + 30;
+		HudLayout.report(HudLayout.TARGETHUD, x, y, x + w, y + h);
+		if (!(mc.hitResult instanceof net.minecraft.world.phys.EntityHitResult hr) || !(hr.getEntity() instanceof LivingEntity le)) {
+			return;
+		}
+		var f = mc.font;
+		Gfx.card(g, x, y, x + w, y + h, 3, Theme.alpha(Theme.dim(Theme.accent(), 0.5), 0.9), Theme.hudBg());
+		String nm = le.getName().getString();
+		Txt.draw(g, f, nm, x + 6, y + 4, Theme.TEXT, false);
+		float hp = le.getHealth();
+		float max = Math.max(1f, le.getMaxHealth());
+		String hs = String.format("%.1f", hp);
+		Txt.draw(g, f, hs, x + w - 6 - Txt.width(f, hs), y + 4, Theme.MUTED, false);
+		g.fill(x + 6, y + 17, x + w - 6, y + 20, Theme.alpha(Theme.LINE, 1.0));
+		int bw = (int) ((w - 12) * Math.min(1f, hp / max));
+		g.fill(x + 6, y + 17, x + 6 + bw, y + 20, Theme.accent());
+	}
+
+	private static void drawInvHud(GuiGraphics g, Minecraft mc) {
+		int w = 9 * 18 + 8;
+		int h = 3 * 18 + 8;
+		int x = 6;
+		int y = g.guiHeight() / 2 - 100;
+		Gfx.card(g, x, y, x + w, y + h, 3, Theme.alpha(Theme.dim(Theme.accent(), 0.5), 0.9), Theme.hudBg());
+		for (int i = 0; i < 27; i++) {
+			ItemStack s = mc.player.getInventory().getItem(9 + i);
+			if (s.isEmpty()) {
+				continue;
+			}
+			int sx = x + 4 + (i % 9) * 18 + 1;
+			int sy = y + 4 + (i / 9) * 18 + 1;
+			g.renderItem(s, sx, sy);
+			g.renderItemDecorations(mc.font, s, sx, sy);
+		}
+		HudLayout.report(HudLayout.INVHUD, x, y, x + w, y + h);
+	}
+
+	private static void drawStats(GuiGraphics g, Minecraft mc) {
+		var f = mc.font;
+		long now = System.currentTimeMillis();
+		boolean l = Input.left();
+		if (l && !cpsWas) {
+			CLICKS.addLast(now);
+		}
+		cpsWas = l;
+		while (!CLICKS.isEmpty() && now - CLICKS.peekFirst() > 1000L) {
+			CLICKS.removeFirst();
+		}
+		java.util.List<String> lines = new java.util.ArrayList<>();
+		Module m = ModuleManager.STATS;
+		if (m.getBool("CPS")) {
+			lines.add("CPS  " + CLICKS.size());
+		}
+		if (m.getBool("Speed")) {
+			var d = mc.player.getDeltaMovement();
+			lines.add(String.format("Speed  %.1f b/s", Math.sqrt(d.x * d.x + d.z * d.z) * 20.0));
+		}
+		if (m.getBool("Ping") && mc.getConnection() != null) {
+			PlayerInfo pi = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+			if (pi != null) {
+				lines.add("Ping  " + pi.getLatency() + " ms");
+			}
+		}
+		if (m.getBool("Clock")) {
+			lines.add(java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+		}
+		if (lines.isEmpty()) {
+			return;
+		}
+		int w = 60;
+		for (String s : lines) {
+			w = Math.max(w, Txt.width(f, s) + 14);
+		}
+		int h = 8 + lines.size() * 11;
+		int x = g.guiWidth() - w - 6;
+		int y = g.guiHeight() / 2 - 40;
+		Gfx.card(g, x, y, x + w, y + h, 3, Theme.alpha(Theme.dim(Theme.accent(), 0.5), 0.9), Theme.hudBg());
+		int ty = y + 5;
+		for (String s : lines) {
+			Txt.draw(g, f, s, x + 7, ty, Theme.TEXT, false);
+			ty += 11;
+		}
+		HudLayout.report(HudLayout.STATS, x, y, x + w, y + h);
+	}
+
+	private static void drawNotes(GuiGraphics g, Minecraft mc) {
+		var f = mc.font;
+		int w = 110;
+		for (String s : Notes.LIST) {
+			w = Math.max(w, Txt.width(f, s) + 16);
+		}
+		int h = 16 + Notes.LIST.size() * 11;
+		int x = 6;
+		int y = g.guiHeight() / 2 + 70;
+		Gfx.card(g, x, y, x + w, y + h, 3, Theme.alpha(Theme.dim(Theme.accent(), 0.5), 0.9), Theme.hudBg());
+		Txt.draw(g, f, "NOTES", x + 6, y + 4, Theme.accent(), false);
+		int ty = y + 16;
+		for (String s : Notes.LIST) {
+			Txt.draw(g, f, s, x + 6, ty, Theme.TEXT, false);
+			ty += 11;
+		}
+		HudLayout.report(HudLayout.NOTES, x, y, x + w, y + h);
+	}
+
+	static String biomeName(Minecraft mc) {
 		String s = mc.level.getBiome(mc.player.blockPosition()).unwrapKey().map(Object::toString).orElse("?");
 		int i = s.lastIndexOf(" / ");
 		if (i >= 0 && s.endsWith("]")) {

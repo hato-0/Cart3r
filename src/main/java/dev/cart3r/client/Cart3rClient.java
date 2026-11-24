@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -17,6 +18,7 @@ public class Cart3rClient implements ClientModInitializer {
 	private static boolean editorRequested = false;
 	private static boolean keyWasDown = false;
 	private static boolean joined = false;
+	private static boolean tourRequested = false;
 
 	@Override
 	public void onInitializeClient() {
@@ -24,6 +26,7 @@ public class Cart3rClient implements ClientModInitializer {
 		Waypoints.load();
 		Profiles.load();
 		HudLayout.load();
+		Notes.load();
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 			var node = dispatcher.register(ClientCommandManager.literal("cart3r")
@@ -67,6 +70,32 @@ public class Cart3rClient implements ClientModInitializer {
 							for (Profiles.Profile p : Profiles.LIST) {
 								ctx.getSource().sendFeedback(Component.literal(p.name() + " (" + p.mods().size() + " cheats)"));
 							}
+							return 1;
+						})))
+				.then(ClientCommandManager.literal("tour")
+					.executes(ctx -> {
+						tourRequested = true;
+						return 1;
+					}))
+				.then(ClientCommandManager.literal("note")
+					.then(ClientCommandManager.literal("add")
+						.then(ClientCommandManager.argument("text", StringArgumentType.greedyString())
+							.executes(ctx -> {
+								boolean ok = Notes.add(StringArgumentType.getString(ctx, "text"));
+								ctx.getSource().sendFeedback(Component.literal(ok ? "Note added" : "Note not added (max 12)"));
+								return 1;
+							})))
+					.then(ClientCommandManager.literal("del")
+						.then(ClientCommandManager.argument("n", IntegerArgumentType.integer(1))
+							.executes(ctx -> {
+								boolean ok = Notes.remove(IntegerArgumentType.getInteger(ctx, "n"));
+								ctx.getSource().sendFeedback(Component.literal(ok ? "Note removed" : "No such note"));
+								return 1;
+							})))
+					.then(ClientCommandManager.literal("clear")
+						.executes(ctx -> {
+							Notes.clear();
+							ctx.getSource().sendFeedback(Component.literal("Notes cleared"));
 							return 1;
 						})))
 				.then(ClientCommandManager.literal("wp")
@@ -134,6 +163,10 @@ public class Cart3rClient implements ClientModInitializer {
 				editorRequested = false;
 				mc.setScreen(new HudEditorScreen());
 			}
+			if (tourRequested && mc.player != null) {
+				tourRequested = false;
+				mc.setScreen(new TourScreen());
+			}
 			if (openRequested && mc.player != null) {
 				openRequested = false;
 				mc.setScreen(new MenuScreen());
@@ -148,8 +181,17 @@ public class Cart3rClient implements ClientModInitializer {
 			}
 			if (!joined) {
 				joined = true;
-				Notify.push("HATO v12 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
+				if (Theme.INTRO.bool()) {
+					Intro.trigger();
+				} else {
+					Notify.push("HATO v17 ready - press " + Module.keyName(ModuleManager.INTERFACE.getKey()), Theme.accent());
+				}
 				ModuleManager.onJoin(mc);
+			}
+
+			if (Tour.needed() && !Tour.shown && mc.player.tickCount > 80 && mc.screen == null) {
+				Tour.shown = true;
+				mc.setScreen(new TourScreen());
 			}
 
 			for (Module m : ModuleManager.MODULES) {

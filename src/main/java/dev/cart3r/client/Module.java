@@ -133,6 +133,7 @@ public abstract class Module {
 		}
 		Config.save();
 		Notify.module(name, enabled);
+		Sfx.click(enabled);
 	}
 
 	public void onEnable(Minecraft mc) {

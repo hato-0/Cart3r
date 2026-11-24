@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MenuScreen extends Screen {
-	private static final int PW = 440;
+	private static final int PW = 480;
 	private static final int ROW = 22;
 	private static final int[] KEYS = buildKeys();
 
@@ -184,7 +184,7 @@ public class MenuScreen extends Screen {
 		super.render(g, mouseX, mouseY, delta);
 		Minecraft mc = Minecraft.getInstance();
 		Font f = this.font;
-		ph = Math.min(318, this.height - 16);
+		ph = Math.min(352, this.height - 16);
 		px = (this.width - PW) / 2;
 		py = (this.height - ph) / 2;
 		listTop = py + 58;
@@ -227,6 +227,7 @@ public class MenuScreen extends Screen {
 		Gfx.pushScale(g, cx, cy, s);
 		drawFrame(g, f);
 		drawSearch(g, f, mouseX, mouseY, delta);
+		drawHelp(g, f, mc, lClick);
 		drawTabs(g, f, lClick);
 		drawList(g, f, mc, lClick, rClick);
 		drawPane(g, f, mc, lClick, rClick, l);
@@ -272,15 +273,35 @@ public class MenuScreen extends Screen {
 			Gfx.glow(g, px, py, px + PW, py + ph, 5, accent, alpha);
 		}
 		Gfx.card(g, px, py, px + PW, py + ph, 5, a(Theme.dim(accent, 0.55), 1), a(Theme.PANEL, Theme.panelAlpha()));
-		Txt.draw(g, f, "HATO", px + 12, py + 9, a(accent, 1), false);
-		Txt.draw(g, f, "CLIENT", px + 12 + Txt.width(f, "HATO") + 5, py + 9, a(Theme.MUTED, 1), false);
-		String ver = "v12.0";
+		Logo.draw(g, px + 10, py + 6, 16, alpha);
+		Txt.draw(g, f, "HATO", px + 32, py + 9, a(accent, 1), false);
+		Txt.draw(g, f, "CLIENT", px + 32 + Txt.width(f, "HATO") + 5, py + 9, a(Theme.MUTED, 1), false);
+		String ver = "v17.0";
 		Txt.draw(g, f, ver, px + PW - 12 - Txt.width(f, ver), py + 9, a(Theme.MUTED, 1), false);
+		int active = 0;
+		for (Module am : ModuleManager.MODULES) {
+			if (am != ModuleManager.INTERFACE && am.isEnabled()) {
+				active++;
+			}
+		}
+		String act = active + " active";
+		Txt.draw(g, f, act, px + PW - 12 - Txt.width(f, ver) - 10 - Txt.width(f, act), py + 9, a(accent, 0.9), false);
 		g.fill(px + 10, py + 27, px + PW - 10, py + 28, a(Theme.LINE, 1));
 		float sh = (System.currentTimeMillis() % 2600L) / 2600f;
 		int sx0 = px + 10 + (int) ((PW - 20 - 70) * sh);
 		g.fill(sx0, py + 27, sx0 + 70, py + 28, a(accent, 0.3));
 		g.fill(sx0 + 18, py + 27, sx0 + 52, py + 28, a(accent, 0.9));
+	}
+
+	private void drawHelp(GuiGraphics g, Font f, Minecraft mc, boolean lClick) {
+		int hx = px + PW - 70;
+		int hy = py + 6;
+		boolean hov = mx >= hx && mx < hx + 14 && my >= hy && my < hy + 14;
+		Gfx.round(g, hx, hy, hx + 14, hy + 14, 3, a(hov ? 0xFF2E2E3A : 0xFF20202A, 1));
+		Txt.draw(g, f, "?", hx + (14 - Txt.width(f, "?")) / 2, hy + 3, a(Theme.TEXT, 1), false);
+		if (hov && lClick) {
+			mc.setScreen(new TourScreen());
+		}
 	}
 
 	private void drawTabs(GuiGraphics g, Font f, boolean lClick) {
@@ -296,16 +317,29 @@ public class MenuScreen extends Screen {
 			if (on) {
 				sel = i;
 			}
-			int col = on ? accent : (hover ? Theme.TEXT : Theme.MUTED);
+			int cc = Theme.catColor(cats[i]);
+			int col = on ? cc : (hover ? Theme.TEXT : Theme.MUTED);
 			String label = cats[i].label;
-			Txt.draw(g, f, label, x1 + (tw - Txt.width(f, label)) / 2, ty + 5, a(col, 1), false);
+			int cnt = 0;
+			for (Module cm : ModuleManager.MODULES) {
+				if (cm != ModuleManager.INTERFACE && cm.isEnabled() && (cats[i] == Module.Category.FAVS ? cm.favorite : cm.getCategory() == cats[i])) {
+					cnt++;
+				}
+			}
+			String cs = cnt > 0 ? " " + cnt : "";
+			int lw2 = Txt.width(f, label) + Txt.width(f, cs);
+			Txt.draw(g, f, label, x1 + (tw - lw2) / 2, ty + 5, a(col, 1), false);
+			if (cnt > 0) {
+				Txt.draw(g, f, cs, x1 + (tw - lw2) / 2 + Txt.width(f, label), ty + 5, a(cc, 1), false);
+			}
+			Gfx.circle(g, x1 + 4, ty + 9, 1, a(on ? cc : Theme.dim(cc, 0.5), 1));
 			if (lClick && hover && !on) {
 				select(cats[i]);
 			}
 		}
 		float target = px + 10 + sel * tw;
 		tabX = tabX < 0 ? target : Theme.approach(tabX, target, 16f);
-		Gfx.round(g, Math.round(tabX) + 8, ty + 17, Math.round(tabX) + tw - 8, ty + 19, 1, a(accent, 1));
+		Gfx.round(g, Math.round(tabX) + 8, ty + 17, Math.round(tabX) + tw - 8, ty + 19, 1, a(Theme.catColor(cats[sel]), 1));
 	}
 
 	private void drawSwitch(GuiGraphics g, int x, int y, float anim, float k) {
@@ -347,12 +381,26 @@ public class MenuScreen extends Screen {
 				Gfx.round(g, x, y, x + lw, y + 20, 3, a(bg, k));
 			}
 			if (m.guiAnim > 0.02f) {
-				Gfx.round(g, x + 3, y + 4, x + 5, y + 16, 1, a(accent, k * m.guiAnim));
+				Gfx.round(g, x + 1, y + 4, x + 3, y + 16, 1, a(accent, k * m.guiAnim));
 			}
 			int tc = Theme.mix(0xFFB4B4C0, Theme.TEXT, Math.max(m.guiAnim, m.guiHover * 0.6f));
-			Txt.draw(g, f, m.getName(), x + 11, y + 6, a(tc, k), false);
+			String nm = m.getName();
+			String ini = nm.substring(0, 1);
+			for (int ci = 1; ci < nm.length(); ci++) {
+				if (Character.isUpperCase(nm.charAt(ci))) {
+					ini += nm.charAt(ci);
+					break;
+				}
+			}
+			if (ini.length() < 2 && nm.length() > 1) {
+				ini += nm.charAt(1);
+			}
+			int cc = Theme.catColor(m.getCategory());
+			Gfx.round(g, x + 5, y + 3, x + 21, y + 17, 3, a(Theme.dim(cc, 0.35), k));
+			Txt.draw(g, f, ini, x + 5 + (16 - Txt.width(f, ini)) / 2, y + 6, a(cc, k), false);
+			Txt.draw(g, f, m.getName(), x + 26, y + 6, a(tc, k), false);
 			if (m.favorite) {
-				Txt.draw(g, f, "*", x + 14 + Txt.width(f, m.getName()), y + 6, a(0xFFFFC53D, k), false);
+				Txt.draw(g, f, "*", x + 29 + Txt.width(f, m.getName()), y + 6, a(0xFFFFC53D, k), false);
 			}
 
 			boolean isIface = m instanceof InterfaceModule;
